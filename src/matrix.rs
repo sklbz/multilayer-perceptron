@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use std::ops::Mul;
 
 pub type Vector<T> = Vec<T>;
 pub type Matrix<T> = Vector<Vector<T>>;
@@ -40,7 +41,7 @@ impl Random for Matrix<f64> {
         let mut matrix = Vector::new();
 
         for _ in 0..size.0 {
-            let row = Vector::random_static_size((size.1, 1, 1))
+            let row = Vector::random_static_size((size.1, _, _))
             matrix.push(row);
         }
 
