@@ -1,19 +1,25 @@
 use crate::matrix::{Matrix, Tensor, Vector};
 
 struct MultiLayerPerceptron {
-    architecture: Vec<u32>,
+    architecture: Vec<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
 
 impl MultiLayerPerceptron {
-    fn new(architecture: Vec<u32>) -> Self {
+    fn new(architecture: Vec<usize>) -> Self {
         if architecture.len() < 2 {
             panic!("Architecture must have at least 2 layers");
         }
 
-        let weights = Tensor::new();
-        let biases = Matrix::new();
+        let layers_count = architecture.len() - 1;
+
+        let colums = architecture.get(..layers_count).unwrap_or(&[]).to_vec();
+
+        let rows = architecture.get(1..).unwrap_or(&[]).to_vec();
+
+        let weights = Tensor::random_dynamic_size((layers_count, rows, colums));
+        let biases = Matrix::random_dynamic_size((layers_count, rows));
 
         Self {
             architecture,
