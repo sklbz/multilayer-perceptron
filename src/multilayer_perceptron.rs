@@ -1,3 +1,5 @@
+use matrix::Matrix;
+
 struct MultiLayerPerceptron {
     architecture: Vec<u32>,
     // Should I reduce all the operations to a single matrix multiplication or not ?
@@ -7,8 +9,8 @@ struct MultiLayerPerceptron {
     // Maybe it is just about having enoug weights to parametrize during training?
     // I shall probably keep different matrices before training and collapse them after
     // Maybe the biases cannot be reduced with the weights
-    weights: Vec<Matrix<f64, f64, f64, f64>>,
-    biases: Vec<Vec<f64>>,
+    weights: Vec<Matrix<f64>>,
+    biases: Matrix<f64>,
 }
 
 impl MultiLayerPerceptron {
