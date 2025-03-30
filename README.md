@@ -10,9 +10,9 @@ It provides a modular and efficient implementation of key deep learning componen
 1. **Features**
 2. **Installation**
 3. **Usage**
-5. **Benchmarking**
-6. **Contributing**
-7. **License**
+4. **Benchmarking**
+5. **Contributing**
+6. **License**
 
 ## Features
 
