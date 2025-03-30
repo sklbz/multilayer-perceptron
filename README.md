@@ -1,6 +1,6 @@
 # Deep Learning for Rust
 
-["https://skillicons.dev/icons?i=rust,tauri,yew,rocket,docker"]
+[![Rust icon]("https://skillicons.dev/icons?i=rust,tauri,yew,rocket,docker")]
 
 A Rust-based deep learning crate designed for high-performance neural network training and inference. 
 It provides a modular and efficient implementation of key deep learning components.
