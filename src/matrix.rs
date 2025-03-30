@@ -17,7 +17,7 @@ impl Random for Vector<f64> {
         let mut rng = rand::rng();
 
         let mut vec = Vec::new();
-        for _ in 0..size.0 {
+        for _ in 0..size {
             vec.push(rng.random::<f64>());
         }
 
