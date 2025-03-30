@@ -8,7 +8,29 @@ pub type Tensor<T> = Vector<Matrix<T>>;
 pub type PseudoMatrix<T> = Vector<Vector<T>>;
 pub type PseudoTensor<T> = Vector<Matrix<T>>;
 
-trait Random {
+pub trait Length {
+    fn size(&self) -> impl Size;
+}
+
+impl Length for Vector<f64> {
+    fn size(&self) -> impl Size {
+        self.len()
+    }
+}
+
+impl Length for Matrix<f64> {
+    fn size(&self) -> impl Size {
+        (self.len(), self[0].len())
+    }
+}
+
+impl Length for Tensor<f64> {
+    fn size(&self) -> impl Size {
+        (self.len(), self[0].len(), self[0][0].len())
+    }
+}
+
+pub trait Random {
     fn random<T: Size>(size: T) -> Self;
 }
 
