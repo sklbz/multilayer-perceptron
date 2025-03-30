@@ -8,6 +8,8 @@ pub type Tensor<T> = Vector<Matrix<T>>;
 pub type PseudoMatrix<T> = Vector<Vector<T>>;
 pub type PseudoTensor<T> = Vector<Matrix<T>>;
 
+//------------------------------------------------------------------------------
+
 pub trait Length {
     fn size(&self) -> impl Size;
 }
@@ -29,6 +31,30 @@ impl Length for Tensor<f64> {
         (self.len(), self[0].len(), self[0][0].len())
     }
 }
+
+//------------------------------------------------------------------------------
+
+pub trait Transpose {
+    fn transpose(&self) -> Self;
+}
+
+impl Transpose for Matrix<f64> {
+    fn transpose(&self) -> Self {
+        let mut matrix = Vector::new();
+
+        for i in 0..self[0].len() {
+            let mut row = Vector::new();
+            for j in 0..self.len() {
+                row.push(self[j][i]);
+            }
+            matrix.push(row);
+        }
+
+        matrix
+    }
+}
+
+//------------------------------------------------------------------------------
 
 pub trait Random {
     fn random<T: Size>(size: T) -> Self;
