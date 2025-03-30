@@ -7,10 +7,9 @@ It provides a modular and efficient implementation of key deep learning componen
 (well not yet... but one day)
 
 ## Key Sections:
-1. **Introduction** – Provides an overview of the crate.
-2. **Features**
-3. **Installation**
-4. **Usage**
+1. **Features**
+2. **Installation**
+3. **Usage**
 5. **Benchmarking**
 6. **Contributing**
 7. **License**
