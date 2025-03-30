@@ -5,6 +5,9 @@ pub type Vector<T> = Vec<T>;
 pub type Matrix<T> = Vector<Vector<T>>;
 pub type Tensor<T> = Vector<Matrix<T>>;
 
+pub type PseudoMatrix<T> = Vector<Vector<T>>;
+pub type PseudoTensor<T> = Vector<Matrix<T>>;
+
 trait Random {
     fn random_static_size(size: (usize, usize, usize)) -> Self;
     fn random_dynamic_size(size: (usize, Vec<usize>, Vec<usize>)) -> Self;
