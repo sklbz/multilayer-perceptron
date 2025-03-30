@@ -1,9 +1,9 @@
-use crate::matrix::{Matrix, Tensor, Vector};
+use crate::matrix::*;
 
 struct MultiLayerPerceptron {
     architecture: Vec<usize>,
-    weights: Tensor<f64>,
-    biases: Matrix<f64>,
+    weights: PseudoTensor<f64>,
+    biases: PseudoMatrix<f64>,
 }
 
 impl MultiLayerPerceptron {
@@ -18,8 +18,9 @@ impl MultiLayerPerceptron {
 
         let rows = architecture.get(1..).unwrap_or(&[]).to_vec();
 
-        let weights = Tensor::random_dynamic_size((layers_count, rows, colums));
-        let biases = Matrix::random_dynamic_size((layers_count, rows));
+        let weights = PseudoTensor::random((layers_count, colums, rows));
+
+        let biases = PseudoMatrix::random((layers_count, rows));
 
         Self {
             architecture,
@@ -29,8 +30,9 @@ impl MultiLayerPerceptron {
     }
 
     fn calc(&self, input: Vector<f64>) -> Vector<f64> {
-        let mut result = input;
+        let result = input;
 
+        /*
         self.weights
             .iter()
             .zip(self.biases.iter())
@@ -38,9 +40,9 @@ impl MultiLayerPerceptron {
             .for_each(|(matrix, bias)| {
                 result = matrix * result + bias;
             });
-
+        */
         result
     }
 
-    fn train(&mut self, database: Vec<(f64, f64)>) -> () {}
+    fn train(&mut self, _database: Vec<(f64, f64)>) -> () {}
 }

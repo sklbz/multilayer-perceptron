@@ -3,6 +3,11 @@ mod matrix_product;
 mod multilayer_perceptron;
 mod size;
 
+use matrix::Random;
+use matrix::Transpose;
+
 fn main() {
-    println!("Hello, world!");
+    let matrix = matrix::Matrix::random((3, 2));
+    println!("{:?}", matrix);
+    println!("{:?}", matrix.transpose());
 }
