@@ -49,7 +49,7 @@ Contributions are welcome! To contribute:
 
 ### Contributing Guidelines
 
-+ Follow Rust's standard formatting
++ Follow Rust's standard formatting - `cargo fmt`
 + Run Clippy for linting
 + Write unit test for new features
 
