@@ -1,4 +1,5 @@
 use crate::linear_algebra::generator::Generator;
+use crate::linear_algebra::grid_display::GridDisplay;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
@@ -22,6 +23,7 @@ pub(crate) fn test() {
         .collect();
 
     let transposed = matrix.transpose();
-    println!("{:#?}", matrix);
-    println!("{:#?}", transposed);
+
+    matrix.display();
+    transposed.display();
 }
