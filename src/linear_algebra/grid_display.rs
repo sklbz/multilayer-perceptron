@@ -1,0 +1,24 @@
+use crate::linear_algebra::matrix::*;
+
+pub(crate) trait GridDisplay {
+    fn grid(&self) -> String;
+    fn display(&self);
+}
+
+impl GridDisplay for Matrix<f64> {
+    fn grid(&self) -> String {
+        let mut result = String::new();
+
+        for row in self {
+            for i in row {
+                result += &format!("{} ", i);
+            }
+            result += "\n";
+        }
+        result
+    }
+
+    fn display(&self) {
+        println!("{}", self.grid());
+    }
+}
