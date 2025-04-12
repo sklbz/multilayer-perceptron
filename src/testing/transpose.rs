@@ -17,7 +17,7 @@ pub(crate) fn test() {
 
     let matrix: Matrix<f64> = (values[0], values[1])
         .generate_random()
-        .mul(10f64)
+        .mul(&10f64)
         .into_iter()
         .map(|x| x.into_iter().map(|x| x.trunc()).collect())
         .collect();
