@@ -1,13 +1,9 @@
-mod matrix;
-mod matrix_product;
-mod multilayer_perceptron;
-mod size;
+mod linear_algebra;
 
-use matrix::Random;
-use matrix::Transpose;
+use crate::linear_algebra::matrix::*;
 
 fn main() {
-    let matrix = matrix::Matrix::random((3, 2));
+    let matrix = Matrix.random((3, 2));
     println!("{:?}", matrix);
     println!("{:?}", matrix.transpose());
 }
