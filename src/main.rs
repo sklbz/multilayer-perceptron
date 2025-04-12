@@ -1,12 +1,8 @@
 mod linear_algebra;
 mod testing;
 
-use crate::testing::generation::test;
+use crate::testing::transpose::test;
 
 fn main() {
     test();
-
-    // let matrix = Matrix.random((3, 2));
-    // println!("{:?}", matrix);
-    // println!("{:?}", matrix.transpose());
 }
