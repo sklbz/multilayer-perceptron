@@ -83,7 +83,7 @@ impl PseudoRandom for Tensor<f64> {
         let mut tensor = Vector::new();
 
         for i in 0..size.len() {
-            let matrix = Matrix::pseudo_random(size[i]);
+            let matrix = Matrix::pseudo_random(size[i].clone());
             tensor.push(matrix);
         }
 

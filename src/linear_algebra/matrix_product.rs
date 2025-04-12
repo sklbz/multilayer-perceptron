@@ -29,7 +29,7 @@ impl Mul<f64> for Matrix<f64> {
     type Output = Matrix<f64>;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.iter().map(|x: &Vector<f64>| x * scalar).collect()
+        self.iter().map(|x: Vector<f64>| x * scalar).collect()
     }
 }
 
@@ -37,7 +37,7 @@ impl Mul<f64> for Tensor<f64> {
     type Output = Tensor<f64>;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.iter().map(|x: &Matrix<f64>| x * scalar).collect()
+        self.iter().map(|x: Matrix<f64>| x * scalar).collect()
     }
 }
 
