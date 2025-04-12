@@ -4,11 +4,11 @@ use rand::prelude::*;
 //------------------------------------------------------------------------------
 
 pub trait Random {
-    fn random<T: Size>(size: T) -> Self;
+    fn random(size: impl Size) -> Self;
 }
 
 impl Random for Vector<f64> {
-    fn random<usize>(size: usize) -> Self {
+    fn random(size: impl usize) -> Self {
         let mut rng = rand::rng();
 
         let mut vec = Vec::new();
@@ -21,7 +21,7 @@ impl Random for Vector<f64> {
 }
 
 impl Random for Matrix<f64> {
-    fn random<(usize, usize)>(size: (usize, usize)) -> Self {
+    fn random(size: impl (usize, usize)) -> Self {
         let mut matrix = Vector::new();
 
         for _ in 0..size.0 {
@@ -34,7 +34,7 @@ impl Random for Matrix<f64> {
 }
 
 impl Random for Tensor<f64> {
-    fn random(size: (usize, usize, usize)) -> Self {
+    fn random(size: impl (usize, usize, usize)) -> Self {
         let mut tensor = Vector::new();
 
         for _ in 0..size.0 {
@@ -47,46 +47,3 @@ impl Random for Tensor<f64> {
 }
 
 //------------------------------------------------------------------------------
-
-trait PseudoRandom {
-    fn pseudo_random<T: Size>(size: T) -> Self;
-}
-
-impl PseudoRandom for Vector<f64> {
-    fn pseudo_random(size: usize) -> Self {
-        let mut rng = rand::rng();
-
-        let mut vec = Vec::new();
-        for _ in 0..size {
-            vec.push(rng.random::<f64>());
-        }
-
-        vec
-    }
-}
-
-impl PseudoRandom for Matrix<f64> {
-    fn pseudo_random(size: Vec<usize>) -> Self {
-        let mut matrix = Vector::new();
-
-        for i in 0..size.len() {
-            let row = Vector::pseudo_random(size[i]);
-            matrix.push(row);
-        }
-
-        matrix
-    }
-}
-
-impl PseudoRandom for Tensor<f64> {
-    fn pseudo_random(size: Matrix<usize>) -> Self {
-        let mut tensor = Vector::new();
-
-        for i in 0..size.len() {
-            let matrix = Matrix::pseudo_random(size[i].clone());
-            tensor.push(matrix);
-        }
-
-        tensor
-    }
-}
