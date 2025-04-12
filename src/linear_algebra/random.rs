@@ -8,7 +8,7 @@ pub trait Random {
 }
 
 impl Random for Vector<f64> {
-    fn random(size: usize) -> Self {
+    fn random<usize>(size: usize) -> Self {
         let mut rng = rand::rng();
 
         let mut vec = Vec::new();
@@ -21,7 +21,7 @@ impl Random for Vector<f64> {
 }
 
 impl Random for Matrix<f64> {
-    fn random(size: (usize, usize)) -> Self {
+    fn random<(usize, usize)>(size: (usize, usize)) -> Self {
         let mut matrix = Vector::new();
 
         for _ in 0..size.0 {
