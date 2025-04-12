@@ -1,6 +1,6 @@
 use crate::linear_algebra::matrix::*;
 
-trait Mul<T> {
+pub(crate) trait Mul<T> {
     type Output;
 
     fn mul(self, other: T) -> Self::Output;
@@ -67,6 +67,6 @@ impl Mul<Matrix<f64>> for Matrix<f64> {
     type Output = Matrix<f64>;
 
     fn mul(self, _other: Matrix<f64>) -> Self::Output {
-        return self;
+        self
     }
 }
