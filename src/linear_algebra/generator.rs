@@ -46,4 +46,19 @@ impl Generator<Tensor<f64>> for (usize, usize, usize) {
     }
 }
 
+//---------------------------------------
+
+impl Generator<Matrix<f64>> for Vector<usize> {
+    fn generate_random(self) -> Matrix<f64> {
+        let mut matrix = Vector::new();
+
+        for i in 0..self.len() {
+            let row = self[i].generate_random();
+            matrix.push(row);
+        }
+
+        matrix
+    }
+}
+
 //------------------------------------------------------------------------------

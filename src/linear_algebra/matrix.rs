@@ -1,5 +1,3 @@
-pub(crate) use crate::linear_algebra::size::Size;
-
 pub type Vector<T> = Vec<T>;
 pub type Matrix<T> = Vector<Vector<T>>;
 pub type Tensor<T> = Vector<Matrix<T>>;
