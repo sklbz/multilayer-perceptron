@@ -1,5 +1,10 @@
-use crate::matrix::{Matrix, Tensor, Vector};
-use std::ops::Mul;
+use crate::linear_algebra::matrix::*;
+
+trait Mul<T> {
+    type Output;
+
+    fn mul(self, other: T) -> Self::Output;
+}
 
 //------------------------------------------------------------------------------
 
