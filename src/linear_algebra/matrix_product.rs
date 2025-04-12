@@ -1,13 +1,10 @@
 use crate::linear_algebra::matrix::*;
 
-use std::ops::Mul;
-/*
 trait Mul<T> {
     type Output;
 
     fn mul(self, other: T) -> Self::Output;
 }
-*/
 
 //------------------------------------------------------------------------------
 
@@ -32,7 +29,15 @@ impl Mul<f64> for Matrix<f64> {
     type Output = Matrix<f64>;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.iter().map(|x: &Vector<f64>| *&x * scalar).collect()
+        self.iter().map(|x: &Vector<f64>| x.mul(scalar)).collect()
+    }
+}
+
+impl Mul<f64> for &Matrix<f64> {
+    type Output = Matrix<f64>;
+
+    fn mul(self, scalar: f64) -> Self::Output {
+        self.iter().map(|x: &Vector<f64>| x.mul(scalar)).collect()
     }
 }
 
@@ -40,7 +45,7 @@ impl Mul<f64> for Tensor<f64> {
     type Output = Tensor<f64>;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.iter().map(|x: &Matrix<f64>| *&x * scalar).collect()
+        self.iter().map(|x: &Matrix<f64>| x.mul(scalar)).collect()
     }
 }
 
