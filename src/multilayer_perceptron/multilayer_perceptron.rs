@@ -55,7 +55,7 @@ impl MultiLayerPerceptron {
                 result = matrix.mul(&result).add(bias);
             });
 
-        result
+        result.to_vec()
     }
 
     pub fn train(&mut self, _database: Vec<(f64, f64)>) -> () {}
