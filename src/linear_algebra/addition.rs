@@ -11,3 +11,24 @@ impl Add<Vector<f64>> for Vector<f64> {
         self.iter().zip(other.iter()).map(|(a, b)| a + b).collect()
     }
 }
+
+impl Add<Matrix<f64>> for Matrix<f64> {
+    type Output = Matrix<f64>;
+    fn add(&self, other: &Matrix<f64>) -> Self::Output {
+        self.iter()
+            .zip(other.iter())
+            .map(|(a, b)| a.add(b))
+            .collect()
+    }
+}
+
+impl Add<Tensor<f64>> for Tensor<f64> {
+    type Output = Tensor<f64>;
+
+    fn add(&self, other: &Tensor<f64>) -> Self::Output {
+        self.iter()
+            .zip(other.iter())
+            .map(|(a, b)| a.add(b))
+            .collect()
+    }
+}

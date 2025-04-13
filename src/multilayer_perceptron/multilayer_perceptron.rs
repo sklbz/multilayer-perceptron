@@ -5,7 +5,6 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
 pub(crate) struct MultiLayerPerceptron {
-    architecture: Vector<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
@@ -38,11 +37,7 @@ impl MultiLayerPerceptron {
 
         let biases = rows.generate_random();
 
-        Self {
-            architecture,
-            weights,
-            biases,
-        }
+        Self { weights, biases }
     }
 
     pub fn calc(&self, input: Vector<f64>) -> Vector<f64> {
@@ -58,14 +53,67 @@ impl MultiLayerPerceptron {
         result.to_vec()
     }
 
-    pub fn train(&mut self, _database: Vec<(f64, f64)>) -> () {}
+    pub fn train(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
+        // Neighbors checking based approach : Discrete Gradient Descent
+        // First applying this on the weights, and then on the biases
+
+        fn calculate_error(
+            weights: Tensor<f64>,
+            biases: Matrix<f64>,
+            input: Vector<f64>,
+            target: Vector<f64>,
+            coefficient: f64,
+        ) -> f64 {
+            let mut calc = input;
+            weights
+                .iter()
+                .zip(biases.iter())
+                .for_each(|(matrix, bias)| {
+                    calc = matrix.mul(&calc).add(bias);
+                });
+
+            let error = calc
+                .iter()
+                .zip(target.iter())
+                .fold(0f64, |acc, (calc, target)| acc + (calc - target).powf(2.0));
+
+            error * coefficient
+        }
+
+        let iterations = 10;
+
+        // Weights
+        for step in [-1f64, 0f64, 1f64] {
+            let increment = self
+                .weights
+                .iter()
+                .map(|matrix| {
+                    matrix
+                        .iter()
+                        .map(|vector| vector.iter().map(|_| step).collect())
+                        .collect()
+                })
+                .collect();
+
+            println!("Step: {}", step);
+            println!(
+                "Error: {}",
+                calculate_error(
+                    self.weights.add(&increment),
+                    self.biases.clone(),
+                    database[0].0.clone(),
+                    database[0].1.clone(),
+                    database[0].2
+                )
+            );
+        }
+
+        // Biases
+    }
 
     pub fn display(&self) {
-        println!("Architecture:");
-        println!("{:?}", self.architecture);
         println!("Weights:");
         println!("{:?}", self.weights);
-        self.weights.display();
         println!("Biases:");
         println!("{:?}", self.biases);
     }
