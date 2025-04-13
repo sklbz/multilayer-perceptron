@@ -22,3 +22,19 @@ impl GridDisplay for Matrix<f64> {
         println!("{}", self.grid());
     }
 }
+
+impl GridDisplay for Tensor<f64> {
+    fn grid(&self) -> String {
+        let mut result = String::new();
+
+        for i in self {
+            result += i.grid().as_str();
+            result += "\n\n\n";
+        }
+        result
+    }
+
+    fn display(&self) {
+        println!("{}", self.grid());
+    }
+}
