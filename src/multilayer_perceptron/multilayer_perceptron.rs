@@ -1,6 +1,8 @@
+use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::grid_display::GridDisplay;
 use crate::linear_algebra::matrix::*;
+use crate::linear_algebra::product::Mul;
 
 pub(crate) struct MultiLayerPerceptron {
     architecture: Vector<usize>,
@@ -32,7 +34,7 @@ impl MultiLayerPerceptron {
             .map(|layer_size| layer_size as usize)
             .collect();
 
-        let weights = vec![rows.clone(), colums.clone()].generate_random();
+        let weights = (rows.clone(), colums.clone()).generate_random();
 
         let biases = rows.generate_random();
 
@@ -44,17 +46,15 @@ impl MultiLayerPerceptron {
     }
 
     pub fn calc(&self, input: Vector<f64>) -> Vector<f64> {
-        let result = input;
+        let mut result = input;
 
-        /*
         self.weights
             .iter()
             .zip(self.biases.iter())
-            .into_iter()
             .for_each(|(matrix, bias)| {
-                result = matrix * result + bias;
+                result = matrix.mul(&result).add(bias);
             });
-        */
+
         result
     }
 
@@ -65,6 +65,7 @@ impl MultiLayerPerceptron {
         println!("{:?}", self.architecture);
         println!("Weights:");
         println!("{:?}", self.weights);
+        self.weights.display();
         println!("Biases:");
         println!("{:?}", self.biases);
     }

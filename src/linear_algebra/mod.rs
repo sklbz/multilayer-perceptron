@@ -1,3 +1,4 @@
+pub(crate) mod addition;
 pub(crate) mod generator;
 pub(crate) mod grid_display;
 pub(crate) mod length;
