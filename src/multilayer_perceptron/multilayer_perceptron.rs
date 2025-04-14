@@ -1,6 +1,6 @@
+use super::utils::*;
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
-use crate::linear_algebra::grid_display::GridDisplay;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
@@ -15,25 +15,9 @@ impl MultiLayerPerceptron {
             panic!("Architecture must have at least 2 layers");
         }
 
-        let layers_count = architecture.len() - 1;
+        let (rows, columns): (Vector<usize>, Vector<usize>) = into_layer(architecture);
 
-        let colums: Vector<usize> = architecture
-            .get(..layers_count)
-            .unwrap_or(&[])
-            .to_vec()
-            .into_iter()
-            .map(|layer_size| layer_size as usize)
-            .collect();
-
-        let rows: Vector<usize> = architecture
-            .get(1..)
-            .unwrap_or(&[])
-            .to_vec()
-            .into_iter()
-            .map(|layer_size| layer_size as usize)
-            .collect();
-
-        let weights = (rows.clone(), colums.clone()).generate_random();
+        let weights = (rows.clone(), columns).generate_random();
 
         let biases = rows.generate_random();
 
@@ -57,31 +41,6 @@ impl MultiLayerPerceptron {
         // Neighbors checking based approach : Discrete Gradient Descent
         // First applying this on the weights, and then on the biases
 
-        fn calculate_error(
-            weights: Tensor<f64>,
-            biases: Matrix<f64>,
-            input: Vector<f64>,
-            target: Vector<f64>,
-            coefficient: f64,
-        ) -> f64 {
-            let mut calc = input;
-            weights
-                .iter()
-                .zip(biases.iter())
-                .for_each(|(matrix, bias)| {
-                    calc = matrix.mul(&calc).add(bias);
-                });
-
-            let error = calc
-                .iter()
-                .zip(target.iter())
-                .fold(0f64, |acc, (calc, target)| acc + (calc - target).powf(2.0));
-
-            error * coefficient
-        }
-
-        let iterations = 10;
-
         // Weights
         for step in [-1f64, 0f64, 1f64] {
             let increment = self
@@ -96,19 +55,27 @@ impl MultiLayerPerceptron {
                 .collect();
 
             println!("Step: {}", step);
-            println!(
-                "Error: {}",
-                calculate_error(
-                    self.weights.add(&increment),
-                    self.biases.clone(),
-                    database[0].0.clone(),
-                    database[0].1.clone(),
-                    database[0].2
-                )
-            );
+            println!("Error: {}", self.error_function(database));
         }
 
         // Biases
+    }
+
+    pub fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
+        let error = self.error_function(database);
+
+        if error == 0.0 {
+            return;
+        }
+    }
+
+    fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
+        database
+            .iter()
+            .map(|(input, target, coefficient)| {
+                square_error(&self.calc(input.clone()), target) * coefficient
+            })
+            .sum()
     }
 
     pub fn display(&self) {
