@@ -9,8 +9,22 @@ pub(crate) struct MultiLayerPerceptron {
     biases: Matrix<f64>,
 }
 
-impl MultiLayerPerceptron {
-    pub fn new(architecture: Vector<usize>) -> Self {
+pub(crate) trait NeuralNetwork {
+    fn new(architecture: Vector<usize>) -> Self;
+
+    fn calc(&self, input: Vector<f64>) -> Vector<f64>;
+
+    fn calc_all(&self, input: Vector<f64>) -> Matrix<f64>;
+
+    fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>);
+
+    fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64;
+
+    fn display(&self);
+}
+
+impl NeuralNetwork for MultiLayerPerceptron {
+    fn new(architecture: Vector<usize>) -> Self {
         if architecture.len() < 2 {
             panic!("Architecture must have at least 2 layers");
         }
@@ -24,7 +38,7 @@ impl MultiLayerPerceptron {
         Self { weights, biases }
     }
 
-    pub fn calc(&self, input: Vector<f64>) -> Vector<f64> {
+    fn calc(&self, input: Vector<f64>) -> Vector<f64> {
         let mut result = input;
 
         self.weights
@@ -45,13 +59,13 @@ impl MultiLayerPerceptron {
             .zip(self.biases.iter())
             .map(|(matrix, bias)| -> Vector<f64> {
                 current = matrix.mul(&current).add(bias);
-                return current;
+                current.clone()
             })
             .collect::<Matrix<f64>>()
     }
 
-    pub fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
-        let error = self.error_function(database);
+    fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) {
+        let error = self.error_function(database.clone());
 
         if error == 0.0 {
             return;
@@ -67,7 +81,12 @@ impl MultiLayerPerceptron {
         //                            ∂(weight kj of layer l)
         // weights[l, k, j] = ---------------------------------------
         //                    ∂(non-linearised neuron k of layer l+1)
-        let _weights: Gradient<Tensor<f64>>;
+        let _weights: Gradient<Matrix<f64>> = mean(
+            &database
+                .iter()
+                .map(|(input, _, _)| self.calc_all(input.clone()))
+                .collect::<Tensor<f64>>(),
+        );
     }
 
     fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
@@ -79,7 +98,7 @@ impl MultiLayerPerceptron {
             .sum()
     }
 
-    pub fn display(&self) {
+    fn display(&self) {
         println!("Weights:");
         println!("{:?}", self.weights);
         println!("Biases:");
