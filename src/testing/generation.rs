@@ -1,5 +1,6 @@
 use crate::linear_algebra::generator::Generator;
 
+#[allow(unused)]
 pub(crate) fn test() {
     let vector = 3.generate_random();
     let matrix = (3, 2).generate_random();

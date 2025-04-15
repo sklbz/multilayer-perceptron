@@ -5,6 +5,7 @@ use crate::linear_algebra::product::Mul;
 
 use std::io;
 
+#[allow(unused)]
 pub(crate) fn test() {
     let mut input = String::new();
     io::stdin()
