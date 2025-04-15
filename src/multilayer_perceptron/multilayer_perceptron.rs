@@ -40,34 +40,14 @@ impl MultiLayerPerceptron {
     fn calc_all(&self, input: Vector<f64>) -> Matrix<f64> {
         let mut current = input;
 
-        self.weights.iter().zip(self.biases.iter()).map(|(matrix, bias)| {
-            current = matrix.mul(&current).add(bias)
-            return current;
-        })
-    }
-
-    pub fn train(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
-        // Neighbors checking based approach : Discrete Gradient Descent
-        // First applying this on the weights, and then on the biases
-
-        // Weights
-        for step in [-1f64, 0f64, 1f64] {
-            let increment = self
-                .weights
-                .iter()
-                .map(|matrix| {
-                    matrix
-                        .iter()
-                        .map(|vector| vector.iter().map(|_| step).collect::<Vec<_>>())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-
-            println!("Step: {}", step);
-            println!("Error: {}", self.error_function(database));
-        }
-
-        // Biases
+        self.weights
+            .iter()
+            .zip(self.biases.iter())
+            .map(|(matrix, bias)| -> Vector<f64> {
+                current = matrix.mul(&current).add(bias);
+                return current;
+            })
+            .collect::<Matrix<f64>>()
     }
 
     pub fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
