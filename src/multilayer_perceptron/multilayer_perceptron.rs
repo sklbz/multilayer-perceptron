@@ -37,6 +37,15 @@ impl MultiLayerPerceptron {
         result.to_vec()
     }
 
+    fn calc_all(&self, input: Vector<f64>) -> Matrix<f64> {
+        let mut current = input;
+
+        self.weights.iter().zip(self.biases.iter()).map(|(matrix, bias)| {
+            current = matrix.mul(&current).add(bias)
+            return current;
+        })
+    }
+
     pub fn train(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> () {
         // Neighbors checking based approach : Discrete Gradient Descent
         // First applying this on the weights, and then on the biases
@@ -49,10 +58,10 @@ impl MultiLayerPerceptron {
                 .map(|matrix| {
                     matrix
                         .iter()
-                        .map(|vector| vector.iter().map(|_| step).collect())
-                        .collect()
+                        .map(|vector| vector.iter().map(|_| step).collect::<Vec<_>>())
+                        .collect::<Vec<_>>()
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
             println!("Step: {}", step);
             println!("Error: {}", self.error_function(database));
@@ -67,6 +76,18 @@ impl MultiLayerPerceptron {
         if error == 0.0 {
             return;
         }
+
+        type Gradient<T> = T;
+
+        //                                ∂(neuron j of layer l)
+        // activations[l, k, j] = ---------------------------------------
+        //                        ∂(non-linearised neuron k of layer l+1)
+        let _activations: &Gradient<Tensor<f64>> = &self.weights;
+
+        //                            ∂(weight kj of layer l)
+        // weights[l, k, j] = ---------------------------------------
+        //                    ∂(non-linearised neuron k of layer l+1)
+        let _weights: Gradient<Tensor<f64>>;
     }
 
     fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
