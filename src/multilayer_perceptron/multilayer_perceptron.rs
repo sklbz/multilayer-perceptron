@@ -73,14 +73,14 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
         type Gradient<T> = T;
 
-        //                                ∂(neuron j of layer l)
-        // activations[l, k, j] = ---------------------------------------
         //                        ∂(non-linearised neuron k of layer l+1)
+        // activations[l, k, j] = ---------------------------------------
+        //                                ∂(neuron j of layer l)
         let _activations: &Gradient<Tensor<f64>> = &self.weights;
 
-        //                            ∂(weight kj of layer l)
-        // weights[l, k, j] = ---------------------------------------
         //                    ∂(non-linearised neuron k of layer l+1)
+        // weights[l, k, j] = ---------------------------------------
+        //                            ∂(weight kj of layer l)
         let _weights: Gradient<Matrix<f64>> = mean(
             &database
                 .iter()
