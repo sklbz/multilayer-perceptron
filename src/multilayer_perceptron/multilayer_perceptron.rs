@@ -108,6 +108,11 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let _results: Gradient<Vector<f64>> = stepwise_gradients.3;
 
         // Chain rule
+        // I could inspire myself from adjacency matrices in graphs to create an elegant algorithm
+        // utilizing only a few matrix/tensor multiplication
+        // One problem is that I am unsure about the behaviour of the tensor product I defined
+        // Not to mention they aren't even proper matrices nor proper tensors
+        // I should also expand the weight grad instead of collapsing redondant values
     }
 
     fn inner_gradients(
