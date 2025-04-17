@@ -69,6 +69,6 @@ impl Mean for Vector<f64> {
 
     fn mean(&self) -> Self::Output {
         let multiplier = 1f64 / self.len() as f64;
-        self.into_iter().sum().mul(&multiplier)
+        self.into_iter().sum::<f64>() * multiplier
     }
 }
