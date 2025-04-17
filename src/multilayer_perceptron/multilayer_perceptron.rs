@@ -20,6 +20,8 @@ pub(crate) trait NeuralNetwork {
 
     fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64;
 
+    fn error_gradient(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> Vector<f64>;
+
     fn display(&self);
 }
 
@@ -81,12 +83,16 @@ impl NeuralNetwork for MultiLayerPerceptron {
         //                    ∂(non-linearised neuron k of layer l+1)
         // weights[l, k, j] = ---------------------------------------
         //                            ∂(weight kj of layer l)
-        let _weights: Gradient<Matrix<f64>> = mean(
-            &database
-                .iter()
-                .map(|(input, _, _)| self.calc_all(input.clone()))
-                .collect::<Tensor<f64>>(),
-        );
+        let _weights: Gradient<Matrix<f64>> = database
+            .iter()
+            .map(|(input, _, _)| self.calc_all(input.clone()))
+            .collect::<Tensor<f64>>()
+            .mean();
+
+        //                      ∂ cost
+        // results[k] = -------------------------
+        //              ∂(neuron k of last layer)
+        let _results: Gradient<Vector<f64>> = self.error_gradient(database);
     }
 
     fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
@@ -96,6 +102,18 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 square_error(&self.calc(input.clone()), target) * coefficient
             })
             .sum()
+    }
+
+    fn error_gradient(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> Vector<f64> {
+        database
+            .iter()
+            .map(|(input, target, coefficient)| -> Vector<f64> {
+                self.calc(input)
+                    .add(&target.mul(&-1f64))
+                    .mul(&(2f64 * coefficient))
+            })
+            .collect::<Matrix<f64>>()
+            .mean()
     }
 
     fn display(&self) {
