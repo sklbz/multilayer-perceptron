@@ -17,16 +17,13 @@ pub(crate) trait NeuralNetwork {
 
     fn calc_all(&self, input: Vector<f64>) -> Matrix<f64>;
 
-    fn backpropagation(&mut self, database: Database);
+    fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>);
 
-    fn error_function(&self, database: Database) -> f64;
+    fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64;
 
-    fn error_gradient(&self, database: Database) -> Vector<f64>;
+    fn error_gradient(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> Vector<f64>;
 
-    fn inner_gradients(
-        &self,
-        database: Database,
-    ) -> (Tensor<f64>, Matrix<f64>, Matrix<f64>, Vector<f64>);
+    fn inner_gradients(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> 
 
     fn display(&self);
 }
@@ -76,7 +73,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .collect::<Matrix<f64>>()
     }
 
-    fn backpropagation(&mut self, database: Database) {
+    fn backpropagation(&mut self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) {
         let error = self.error_function(database.clone());
 
         if error == 0.0 {
@@ -90,31 +87,36 @@ impl NeuralNetwork for MultiLayerPerceptron {
         //                        ∂(unrectified neuron k of layer l+1)
         // activations[l, k, j] = ------------------------------------
         //                               ∂(neuron j of layer l)
-        let _activations: Gradient<Tensor<f64>> = stepwise_gradients.0;
+        let _activations: &Gradient<Tensor<f64>> = &self.weights;
 
         //                 ∂(unrectified neuron k of layer l+1)
         // weights[l, j] = ------------------------------------
         //                       ∂(weight kj of layer l)
-        let _weights: Gradient<Matrix<f64>> = stepwise_gradients.1;
+        let _weights: Gradient<Matrix<f64>> = database
+            .iter()
+            .map(|(input, _, _)| self.calc_all(input.clone()))
+            .collect::<Tensor<f64>>()
+            .mean();
 
         //                ∂(unrectified neuron k of layer l+1)
         // biases[l, k] = ------------------------------------
         //                          ∂(bias k of layer l)
-        let _biases: Gradient<Matrix<f64>> = stepwise_gradients.2;
+        let _biases: &Gradient<Matrix<f64>> = &self
+            .biases
+            .iter()
+            .map(|vec| vec.iter().map(|_| 1f64).collect())
+            .collect();
 
         //                      ∂ cost
         // results[k] = -------------------------
         //              ∂(neuron k of last layer)
-        let _results: Gradient<Vector<f64>> = stepwise_gradients.3;
+        let _results: Gradient<Vector<f64>> = self.error_gradient(database);
 
         // Chain rule
     }
 
-    fn inner_gradients(
-        &self,
-        database: Database,
-    ) -> (Tensor<f64>, Matrix<f64>, Matrix<f64>, Vector<f64>) {
-        let activations: Tensor<f64> = self.weights.clone();
+    fn inner_gradients(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> (Tensor<f64>, Matrix<f64>, Matrix<f64>, Vector<f64>) {
+        let activations: Tensor<f64> = &self.weights;
 
         let weights: Matrix<f64> = database
             .iter()
@@ -133,7 +135,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         (activations, weights, biases, results)
     }
 
-    fn error_function(&self, database: Database) -> f64 {
+    fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
         database
             .iter()
             .map(|(input, target, coefficient)| {
@@ -142,7 +144,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .sum()
     }
 
-    fn error_gradient(&self, database: Database) -> Vector<f64> {
+    fn error_gradient(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> Vector<f64> {
         database
             .iter()
             .map(|(input, target, coefficient)| -> Vector<f64> {
