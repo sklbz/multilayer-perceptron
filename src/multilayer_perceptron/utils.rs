@@ -32,11 +32,43 @@ pub fn square_error(result: &Vec<f64>, target: &Vec<f64>) -> f64 {
         .sum::<f64>()
 }
 
-pub fn mean(this: &Tensor<f64>) -> Matrix<f64> {
-    let mut mean = this[0].clone().add(&this[0].clone().mul(&-1f64));
+// ----------------------------------------------------------------------------
 
-    this.iter().for_each(|matrix| mean = mean.add(&matrix));
+pub(super) trait Mean {
+    type Output;
+    fn mean(&self) -> Self::Output;
+}
 
-    let multiplier = 1f64 / this.len() as f64;
-    mean.mul(&multiplier)
+impl Mean for Tensor<f64> {
+    type Output = Matrix<f64>;
+
+    fn mean(&self) -> Self::Output {
+        let mut mean = self[0].clone().add(&self[0].clone().mul(&-1f64));
+
+        self.iter().for_each(|matrix| mean = mean.add(&matrix));
+
+        let multiplier = 1f64 / self.len() as f64;
+        mean.mul(&multiplier)
+    }
+}
+
+impl Mean for Matrix<f64> {
+    type Output = Vector<f64>;
+
+    fn mean(&self) -> Self::Output {
+        let mut mean = self[0].clone().add(&self[0].clone().mul(&-1f64));
+
+        self.iter().for_each(|vector| mean = mean.add(&vector));
+        let multiplier = 1f64 / self.len() as f64;
+        mean.mul(&multiplier)
+    }
+}
+
+impl Mean for Vector<f64> {
+    type Output = f64;
+
+    fn mean(&self) -> Self::Output {
+        let multiplier = 1f64 / self.len() as f64;
+        self.into_iter().sum().mul(&multiplier)
+    }
 }
