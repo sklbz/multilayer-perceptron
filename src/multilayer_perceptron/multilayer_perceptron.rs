@@ -108,7 +108,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         database
             .iter()
             .map(|(input, target, coefficient)| -> Vector<f64> {
-                self.calc(input)
+                self.calc(input.clone())
                     .add(&target.mul(&-1f64))
                     .mul(&(2f64 * coefficient))
             })
