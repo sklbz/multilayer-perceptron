@@ -75,24 +75,35 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
         type Gradient<T> = T;
 
-        //                        ∂(non-linearised neuron k of layer l+1)
-        // activations[l, k, j] = ---------------------------------------
-        //                                ∂(neuron j of layer l)
+        //                        ∂(unrectified neuron k of layer l+1)
+        // activations[l, k, j] = ------------------------------------
+        //                               ∂(neuron j of layer l)
         let _activations: &Gradient<Tensor<f64>> = &self.weights;
 
-        //                    ∂(non-linearised neuron k of layer l+1)
-        // weights[l, k, j] = ---------------------------------------
-        //                            ∂(weight kj of layer l)
+        //                 ∂(unrectified neuron k of layer l+1)
+        // weights[l, j] = ------------------------------------
+        //                       ∂(weight kj of layer l)
         let _weights: Gradient<Matrix<f64>> = database
             .iter()
             .map(|(input, _, _)| self.calc_all(input.clone()))
             .collect::<Tensor<f64>>()
             .mean();
 
+        //                ∂(unrectified neuron k of layer l+1)
+        // biases[l, k] = ------------------------------------
+        //                          ∂(bias k of layer l)
+        let _biases: &Gradient<Matrix<f64>> = &self
+            .biases
+            .iter()
+            .map(|vec| vec.iter().map(|_| 1f64).collect())
+            .collect();
+
         //                      ∂ cost
         // results[k] = -------------------------
         //              ∂(neuron k of last layer)
         let _results: Gradient<Vector<f64>> = self.error_gradient(database);
+
+        // Chain rule
     }
 
     fn error_function(&self, database: Vec<(Vector<f64>, Vector<f64>, f64)>) -> f64 {
