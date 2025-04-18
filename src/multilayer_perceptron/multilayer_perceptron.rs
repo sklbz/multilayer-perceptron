@@ -101,9 +101,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
         fn backprop(grad: NeuralNetGradient, depth: u64) -> NeuralNetGradient {
             if depth == 0 {
-                grad
+                return grad;
             }
-            grad;
+            grad
         }
     }
 

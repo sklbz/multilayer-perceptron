@@ -56,6 +56,10 @@ impl Mul<Vector<f64>> for Vector<f64> {
     type Output = f64;
 
     fn mul(self, other: &Vector<f64>) -> Self::Output {
+        if self.len() != other.len() {
+            panic!("Attempt to multiply two vectors with different length");
+        }
+
         self.iter().zip(other.iter()).map(|(x, y)| x * y).sum()
     }
 }
@@ -63,6 +67,10 @@ impl Mul<Vector<f64>> for Vector<f64> {
 impl Mul<Vector<f64>> for &Vector<f64> {
     type Output = f64;
     fn mul(self, other: &Vector<f64>) -> Self::Output {
+        if self.len() != other.len() {
+            panic!("Attempt to multiply two vectors with different length");
+        }
+
         self.iter().zip(other.iter()).map(|(x, y)| x * y).sum()
     }
 }
