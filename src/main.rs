@@ -1,5 +1,5 @@
 mod linear_algebra;
-mod multilayer_perceptron;
+mod mlp;
 mod testing;
 
 use crate::testing::mlp::test;
