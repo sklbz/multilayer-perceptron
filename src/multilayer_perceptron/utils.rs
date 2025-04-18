@@ -12,7 +12,7 @@ pub fn into_layer(architecture: Vec<usize>) -> (Vec<usize>, Vec<usize>) {
     (rows, columns)
 }
 
-pub fn square_error(result: &Vec<f64>, target: &Vec<f64>) -> f64 {
+pub fn square_error(result: &[f64], target: &[f64]) -> f64 {
     result
         .iter()
         .zip(target.iter())
@@ -33,7 +33,7 @@ impl Mean for Tensor<f64> {
     fn mean(&self) -> Self::Output {
         let mut mean = self[0].clone().mul(&0f64);
 
-        self.iter().for_each(|matrix| mean = mean.add(&matrix));
+        self.iter().for_each(|matrix| mean = mean.add(matrix));
 
         let multiplier = 1f64 / self.len() as f64;
         mean.mul(&multiplier)
@@ -46,7 +46,7 @@ impl Mean for Matrix<f64> {
     fn mean(&self) -> Self::Output {
         let mut mean = vec![0f64; self[0].len()];
 
-        self.iter().for_each(|vector| mean = mean.add(&vector));
+        self.iter().for_each(|vector| mean = mean.add(vector));
         let multiplier = 1f64 / self.len() as f64;
         mean.mul(&multiplier)
     }
@@ -57,7 +57,7 @@ impl Mean for Vector<f64> {
 
     fn mean(&self) -> Self::Output {
         let multiplier = 1f64 / self.len() as f64;
-        self.into_iter().sum::<f64>() * multiplier
+        self.iter().sum::<f64>() * multiplier
     }
 }
 
