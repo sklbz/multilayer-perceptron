@@ -76,3 +76,9 @@ impl Mean for Vector<f64> {
 // ------------------------------------------------------------------------------------
 
 pub(super) type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
+pub(super) struct StepwiseGradients {
+    pub activations: Tensor<f64>,
+    pub weights: Matrix<f64>,
+    pub biases: Matrix<f64>,
+    pub results: Vector<f64>,
+}

@@ -5,7 +5,7 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
 pub(crate) struct MultiLayerPerceptron {
-    architecture: Vec<usize>,
+    // architecture: Vec<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
@@ -44,7 +44,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let biases = rows.generate_random();
 
         Self {
-            architecture,
+            // architecture,
             weights,
             biases,
         }
@@ -84,28 +84,13 @@ impl NeuralNetwork for MultiLayerPerceptron {
         }
 
         type Gradient<T> = T;
+        struct NeuralNetGradient {
+            weight: Gradient<Tensor<f64>>,
+            neuron: Gradient<Tensor<f64>>,
+            bias: Gradient<Matrix<f64>>,
+        }
 
-        let stepwise_gradients = self.inner_gradients(database);
-
-        //                        ∂(unrectified neuron k of layer l+1)
-        // activations[l, k, j] = ------------------------------------
-        //                               ∂(neuron j of layer l)
-        let _activations: Gradient<Tensor<f64>> = stepwise_gradients.0;
-
-        //                 ∂(unrectified neuron k of layer l+1)
-        // weights[l, j] = ------------------------------------
-        //                       ∂(weight kj of layer l)
-        let _weights: Gradient<Matrix<f64>> = stepwise_gradients.1;
-
-        //                ∂(unrectified neuron k of layer l+1)
-        // biases[l, k] = ------------------------------------
-        //                          ∂(bias k of layer l)
-        let _biases: Gradient<Matrix<f64>> = stepwise_gradients.2;
-
-        //                      ∂ cost
-        // results[k] = -------------------------
-        //              ∂(neuron k of last layer)
-        let _results: Gradient<Vector<f64>> = stepwise_gradients.3;
+        let gradients = self.inner_gradients(database);
 
         // Chain rule
         // I could inspire myself from adjacency matrices in graphs to create an elegant algorithm
@@ -113,29 +98,50 @@ impl NeuralNetwork for MultiLayerPerceptron {
         // One problem is that I am unsure about the behaviour of the tensor product I defined
         // Not to mention they aren't even proper matrices nor proper tensors
         // I should also expand the weight grad instead of collapsing redondant values
+
+        fn backprop(grad: NeuralNetGradient, depth: u64) -> NeuralNetGradient {
+            if depth == 0 {
+                grad
+            }
+            grad;
+        }
     }
 
-    fn inner_gradients(
-        &self,
-        database: Database,
-    ) -> (Tensor<f64>, Matrix<f64>, Matrix<f64>, Vector<f64>) {
+    fn inner_gradients(&self, database: Database) -> StepwiseGradients {
+        //                        ∂(unrectified neuron k of layer l+1)
+        // activations[l, k, j] = ------------------------------------
+        //                               ∂(neuron j of layer l)
         let activations: Tensor<f64> = self.weights.clone();
 
+        //                 ∂(unrectified neuron k of layer l+1)
+        // weights[l, j] = ------------------------------------
+        //                       ∂(weight kj of layer l)
         let weights: Matrix<f64> = database
             .iter()
             .map(|(input, _, _)| self.calc_all(input.clone()))
             .collect::<Tensor<f64>>()
             .mean();
 
+        //                ∂(unrectified neuron k of layer l+1)
+        // biases[l, k] = ------------------------------------
+        //                          ∂(bias k of layer l)
         let biases: Matrix<f64> = self
             .biases
             .iter()
             .map(|vec| vec.iter().map(|_| 1f64).collect())
             .collect();
 
+        //                      ∂ cost
+        // results[k] = -------------------------
+        //              ∂(neuron k of last layer)
         let results: Vector<f64> = self.error_gradient(database);
 
-        (activations, weights, biases, results)
+        StepwiseGradients {
+            activations,
+            weights,
+            biases,
+            results,
+        }
     }
 
     fn error_function(&self, database: Database) -> f64 {
