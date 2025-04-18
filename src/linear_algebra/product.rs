@@ -89,9 +89,7 @@ impl Mul<Vector<f64>> for Matrix<f64> {
 impl Mul<Vector<f64>> for &Matrix<f64> {
     type Output = Vector<f64>;
     fn mul(self, other: &Vector<f64>) -> Self::Output {
-        self.into_iter()
-            .map(|x: &Vector<f64>| x.mul(other))
-            .collect()
+        self.iter().map(|x: &Vector<f64>| x.mul(other)).collect()
     }
 }
 
