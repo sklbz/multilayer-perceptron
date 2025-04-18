@@ -1,6 +1,7 @@
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::size::Size;
 
+#[allow(unused)]
 pub trait Length {
     fn size(&self) -> impl Size;
 }
