@@ -1,4 +1,4 @@
-use crate::multilayer_perceptron::multilayer_perceptron::*;
+use crate::mlp::multilayer_perceptron::*;
 
 #[allow(unused)]
 pub fn test() {
