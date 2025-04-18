@@ -5,21 +5,9 @@ use crate::linear_algebra::product::Mul;
 pub fn into_layer(architecture: Vec<usize>) -> (Vec<usize>, Vec<usize>) {
     let layers_count = architecture.len() - 1;
 
-    let rows: Vec<usize> = architecture
-        .get(1..)
-        .unwrap_or(&[])
-        .to_vec()
-        .into_iter()
-        .map(|layer_size| layer_size as usize)
-        .collect();
+    let rows: Vec<usize> = architecture.get(1..).unwrap_or(&[]).to_vec();
 
-    let columns: Vec<usize> = architecture
-        .get(..layers_count)
-        .unwrap_or(&[])
-        .to_vec()
-        .into_iter()
-        .map(|layer_size| layer_size as usize)
-        .collect();
+    let columns: Vec<usize> = architecture.get(..layers_count).unwrap_or(&[]).to_vec();
 
     (rows, columns)
 }
