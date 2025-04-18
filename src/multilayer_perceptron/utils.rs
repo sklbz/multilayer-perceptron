@@ -43,7 +43,7 @@ impl Mean for Tensor<f64> {
     type Output = Matrix<f64>;
 
     fn mean(&self) -> Self::Output {
-        let mut mean = self[0].clone().mul(0f64);
+        let mut mean = self[0].clone().mul(&0f64);
 
         self.iter().for_each(|matrix| mean = mean.add(&matrix));
 

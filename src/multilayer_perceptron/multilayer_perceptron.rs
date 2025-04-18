@@ -5,7 +5,7 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
 pub(crate) struct MultiLayerPerceptron {
-    // architecture: Vec<usize>,
+    layer_count: usize,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
@@ -34,6 +34,8 @@ impl NeuralNetwork for MultiLayerPerceptron {
             panic!("Architecture must have at least 2 layers");
         }
 
+        let layer_count = architecture.len();
+
         let (rows, columns): (Vector<usize>, Vector<usize>) = into_layer(architecture.clone());
 
         let weights = (rows.clone(), columns).generate_random();
@@ -41,7 +43,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let biases = rows.generate_random();
 
         Self {
-            // architecture,
+            layer_count,
             weights,
             biases,
         }
@@ -82,9 +84,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
         type Gradient<T> = T;
         struct NeuralNetGradient {
-            neurons: Gradient<Tensor<f64>>,
-            weights: Gradient<Tensor<f64>>,
-            biases: Gradient<Matrix<f64>>,
+            pub neurons: Gradient<Matrix<f64>>,
+            pub weights: Gradient<Tensor<f64>>,
+            pub biases: Gradient<Matrix<f64>>,
         }
 
         let gradients = self.inner_gradients(database);
@@ -96,15 +98,48 @@ impl NeuralNetwork for MultiLayerPerceptron {
         // Not to mention they aren't even proper matrices nor proper tensors
         // I should also expand the weight grad instead of collapsing redondant values
 
-        fn backprop(grad: NeuralNetGradient, depth: u64) -> NeuralNetGradient {
+        fn backprop(grad: NeuralNetGradient, depth: usize) -> NeuralNetGradient {
             if depth == 0 {
                 return grad;
             }
 
-            let extended_grad = grad;
+            //                       ∂ cost
+            // previous_layer[k] = -----------
+            //                     ∂(neuron k)
+            let previous_layer = grad.neurons[0].clone();
+
+            //                           ∂ cost
+            // previous_layer[k, j] = ------------
+            //                        ∂(weight kj)
+            let previous_weights = grad.weights[0].clone();
+
+            //                       ∂ cost
+            // previous_biases[k] = ---------
+            //                      ∂(bias k)
+            let previous_biases = grad.biases[0].clone();
+
+            let neurons = [&[previous_layer], &grad.neurons[..]].concat();
+
+            let weights = [&[previous_weights], &grad.weights[..]].concat();
+
+            let biases = [&[previous_biases], &grad.biases[..]].concat();
+
+            let extended_grad = NeuralNetGradient {
+                neurons,
+                weights,
+                biases,
+            };
 
             backprop(extended_grad, depth - 1)
         }
+
+        let initial_grad = NeuralNetGradient {
+            neurons: vec![gradients.results],
+            weights: vec![],
+            biases: vec![],
+        };
+
+        let grad = backprop(initial_grad, self.layer_count);
     }
 
     fn inner_gradients(&self, database: Database) -> StepwiseGradients {
