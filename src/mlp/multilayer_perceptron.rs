@@ -5,7 +5,6 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
 pub(crate) struct MultiLayerPerceptron {
-    layer_count: usize,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
@@ -34,19 +33,13 @@ impl NeuralNetwork for MultiLayerPerceptron {
             panic!("Architecture must have at least 2 layers");
         }
 
-        let layer_count = architecture.len();
-
-        let (rows, columns): (Vector<usize>, Vector<usize>) = into_layer(architecture.clone());
+        let (rows, columns): (Vector<usize>, Vector<usize>) = into_layer(architecture);
 
         let weights = (rows.clone(), columns).generate_random();
 
         let biases = rows.generate_random();
 
-        Self {
-            layer_count,
-            weights,
-            biases,
-        }
+        Self { weights, biases }
     }
 
     fn calc(&self, input: Vector<f64>) -> Vector<f64> {
@@ -139,7 +132,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             biases: vec![],
         };
 
-        let grad = backprop(initial_grad, self.layer_count);
+        let _grad = backprop(initial_grad, self.weights.len());
     }
 
     fn inner_gradients(&self, database: Database) -> StepwiseGradients {
