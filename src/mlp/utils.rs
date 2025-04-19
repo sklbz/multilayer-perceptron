@@ -79,7 +79,7 @@ pub trait Extend<T> {
 
 impl<T> Extend<T> for Vec<T> {
     fn append(mut self, value: T) -> Self {
-        self.splice((self.len() - 1)..(self.len() - 1), vec![value]);
+        self.splice(self.len()..self.len(), vec![value]);
         self
     }
 

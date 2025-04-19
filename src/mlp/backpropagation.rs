@@ -12,9 +12,12 @@ pub(super) fn backprop(
     if depth == 0 {
         return grad;
     }
+
     let weight: &Matrix<f64> = &weight_partials[depth - 1];
     let activation: &Matrix<f64> = &activation_partials[depth - 1];
+
     let previous = previous_layer_gradient(activation, weight, grad.neurons[0].clone());
+
     backprop(
         weight_partials,
         activation_partials,
@@ -30,6 +33,24 @@ pub(super) fn previous_layer_gradient(
     weight: &Matrix<f64>,
     neurons: Vector<f64>,
 ) -> GradientLayer {
+    // DEBUG--------------------------------------------------------------------------------------
+    println!(
+        "---------------------------------------------------------------------------------------------------------------------------------------------------"
+    );
+    println!("DEBUG");
+    println!();
+    fn size(name: String, matrix: &Matrix<f64>) {
+        println!("{name} size: {0}x{1}", matrix.len(), matrix[0].len());
+        println!("{name}: {:?}", matrix);
+    }
+    size("activation".to_string(), activation);
+    size("weight".to_string(), weight);
+    println!();
+    println!(
+        "---------------------------------------------------------------------------------------------------------------------------------------------------"
+    );
+    // --------------------------------------------------------------------------------------
+
     //                       ∂ cost
     // previous_layer[k] = -----------
     //                     ∂(neuron k)
