@@ -72,7 +72,7 @@ pub(super) struct StepwiseGradients {
 
 // ------------------------------------------------------------------------------------
 
-pub(super) trait Extend<T> {
+pub trait Extend<T> {
     fn append(self, value: T) -> Self;
     fn prepend(self, value: T) -> Self;
 }
