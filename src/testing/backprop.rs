@@ -7,8 +7,7 @@ use std::time::Duration;
 
 #[allow(unused)]
 pub fn test() {
-    let mut mlp = MultiLayerPerceptron::new(vec![2, 2, 1]);
-    let mut nn = MultiLayerPerceptron::new(vec![5, 2, 3, 10, 1]);
+    let mut mlp = MultiLayerPerceptron::new(vec![2, 3, 4, 1]);
 
     let database = vec![
         (vec![0f64, 0f64], vec![0f64], 1f64),
@@ -30,6 +29,4 @@ pub fn test() {
 
     println!();
     println!("TEST: {:?}", test);
-
-    nn.backpropagation(database);
 }

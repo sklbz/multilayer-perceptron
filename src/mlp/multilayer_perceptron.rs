@@ -1,4 +1,5 @@
 use super::backpropagation::*;
+use super::partial_gradient::weight_partial;
 use super::utils::*;
 
 use crate::linear_algebra::addition::Add;
@@ -102,6 +103,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             gradients.weights,
             gradients.activations,
             initial_grad,
+            &self.architecture,
             self.weights.len(),
         )
     }
@@ -115,21 +117,11 @@ impl NeuralNetwork for MultiLayerPerceptron {
         //                 ∂(unrectified neuron k of layer l+1)
         // weights[l, k, j] = ------------------------------------
         //                       ∂(weight kj of layer l)
-        let weights: Tensor<f64> = database
-            .iter()
-            .map(|(input, _, _)| self.calc_all(input.clone()))
-            .collect::<Tensor<f64>>()
-            .mean()
-            .iter()
-            .zip(0..self.weights.len())
-            .map(|(vec, l): (&Vector<f64>, usize)| -> Matrix<f64> {
-                vec.iter()
-                    .map(|partial: &f64| -> Vector<f64> {
-                        vec![*partial; self.architecture[l + 1]]
-                    })
-                    .collect::<Matrix<f64>>()
-            })
-            .collect::<Tensor<f64>>();
+        let weights: Tensor<f64> = weight_partial(
+            &|input: Vector<f64>| -> Matrix<f64> { self.calc_all(input) },
+            &self.architecture,
+            database.clone(),
+        );
 
         // ∂(unrectified neuron k of layer l+1)
         // ------------------------------------ = 1
