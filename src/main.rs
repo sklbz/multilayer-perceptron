@@ -3,7 +3,7 @@ mod mlp;
 mod testing;
 
 #[allow(unused)]
-use crate::testing::prepend::test;
+use crate::testing::backprop::test;
 
 fn main() {
     test();
