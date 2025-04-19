@@ -14,9 +14,9 @@ impl Transpose for Matrix<f64> {
 
         for i in 0..self[0].len() {
             let mut row = Vector::new();
-            for j in 0..self.len() {
+            (0..self.len()).for_each(|j| {
                 row.push(self[j][i]);
-            }
+            });
             matrix.push(row);
         }
 

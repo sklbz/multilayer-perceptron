@@ -78,10 +78,10 @@ impl Generator<Tensor<f64>> for Matrix<usize> {
     fn generate_random(self) -> Tensor<f64> {
         let mut tensor = Vector::new();
 
-        for i in 0..self.len() {
+        (0..self.len()).for_each(|i| {
             let matrix = self[i].clone().generate_random();
             tensor.push(matrix);
-        }
+        });
 
         tensor
     }
