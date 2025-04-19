@@ -24,7 +24,7 @@ pub fn test() {
 
     mlp.backpropagation(database.clone());
 
-    sleep(Duration::from_millis(10000));
+    sleep(Duration::from_millis(1000));
 
     let test = mlp.calc(vec![0f64, 0f64]);
 

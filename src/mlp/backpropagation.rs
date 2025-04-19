@@ -46,18 +46,12 @@ pub(super) fn previous_layer_gradient(
     println!("Layer size: {}", neurons.len());
     size("activation".to_string(), activation);
     size("weight".to_string(), weight);
-    println!();
-    println!(
-        "---------------------------------------------------------------------------------------------------------------------------------------------------"
-    );
     // --------------------------------------------------------------------------------------
 
-    println!(">>>>>");
     //                       ∂ cost
     // previous_layer[k] = -----------
     //                     ∂(neuron k)
     let previous_layer: Vector<f64> = activation.transpose().mul(&neurons.clone());
-    println!("<<<<<");
 
     //                             ∂ cost
     // previous_weights[k, j] = ------------
@@ -74,6 +68,14 @@ pub(super) fn previous_layer_gradient(
     // previous_biases[k] = ---------
     //                      ∂(bias k)
     let previous_biases = neurons.clone();
+
+    // DEBUG--------------------------------------------------------------------------------------
+    size("previous_weights".to_string(), &previous_weights);
+    println!();
+    println!(
+        "---------------------------------------------------------------------------------------------------------------------------------------------------"
+    );
+    // --------------------------------------------------------------------------------------
 
     GradientLayer {
         neurons: previous_layer,

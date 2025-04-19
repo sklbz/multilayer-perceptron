@@ -57,6 +57,9 @@ impl Mul<Vector<f64>> for Vector<f64> {
 
     fn mul(self, other: &Vector<f64>) -> Self::Output {
         if self.len() != other.len() {
+            println!();
+            println!("self.len() != other.len()");
+            println!("{} != {}", self.len(), other.len());
             panic!("Attempt to multiply two vectors with different length");
         }
 
@@ -68,6 +71,9 @@ impl Mul<Vector<f64>> for &Vector<f64> {
     type Output = f64;
     fn mul(self, other: &Vector<f64>) -> Self::Output {
         if self.len() != other.len() {
+            println!();
+            println!("self.len() != other.len()");
+            println!("{} != {}", self.len(), other.len());
             panic!("Attempt to multiply two vectors with different length");
         }
 
