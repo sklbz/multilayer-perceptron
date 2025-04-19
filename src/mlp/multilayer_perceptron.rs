@@ -1,6 +1,7 @@
 use super::utils::*;
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
+use crate::linear_algebra::grid_display::*;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
@@ -50,13 +51,17 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn calc(&self, input: Vector<f64>) -> Vector<f64> {
+        println!("Input: {:?}", input.clone());
         let mut result = input;
 
         self.weights
             .iter()
             .zip(self.biases.iter())
             .for_each(|(matrix, bias)| {
+                println!("Matrix: {:?}", matrix.clone());
+                matrix.display();
                 result = matrix.mul(&result).add(bias);
+                println!("Result: {:?}", result.clone());
             });
 
         result.to_vec()
@@ -82,7 +87,21 @@ impl NeuralNetwork for MultiLayerPerceptron {
             return;
         }
 
-        let gradient = self.gradient(database);
+        let NeuralNetGradient {
+            weights, biases, ..
+        } = self.gradient(database);
+
+        fn size(matrix: &Matrix<f64>) {
+            println!("matrix size: {0}x{1}", matrix.len(), matrix[0].len());
+            println!("matrix: {:?}", matrix);
+        }
+
+        self.weights.iter().for_each(|matrix| size(matrix));
+
+        weights.iter().for_each(|matrix| size(matrix));
+
+        self.weights = self.weights.sub(&weights);
+        self.biases = self.biases.sub(&biases);
     }
 
     fn gradient(&self, database: Database) -> NeuralNetGradient {
@@ -98,13 +117,38 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 return grad;
             }
 
-            let weight: &Matrix<f64> = &chain.weights[depth];
-            let activation: &Matrix<f64> = &chain.activations[depth];
+            let weight: &Matrix<f64> = &chain.weights[depth - 1];
+            let activation: &Matrix<f64> = &chain.activations[depth - 1];
+
+            println!("Layer size: {}", grad.neurons[0].len());
+            println!(
+                "Activation partials size: {0}x{1}",
+                activation.len(),
+                activation[0].len()
+            );
+            println!();
+
+            grad.neurons[0]
+                .iter()
+                .map(|neuron: &f64| neuron.trunc())
+                .collect::<Vector<f64>>()
+                .display();
+
+            activation
+                .transpose()
+                .iter()
+                .map(|row: &Vector<f64>| {
+                    row.iter()
+                        .map(|neuron: &f64| neuron.trunc())
+                        .collect::<Vector<f64>>()
+                })
+                .collect::<Matrix<f64>>()
+                .display();
 
             //                       ∂ cost
             // previous_layer[k] = -----------
             //                     ∂(neuron k)
-            let previous_layer: Vector<f64> = activation.mul(&grad.neurons[0].clone());
+            let previous_layer: Vector<f64> = activation.transpose().mul(&grad.neurons[0].clone());
 
             //                           ∂ cost
             // previous_layer[k, j] = ------------
