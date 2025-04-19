@@ -1,6 +1,8 @@
 use crate::mlp::multilayer_perceptron::*;
 
+#[allow(unused)]
 use std::thread::sleep;
+#[allow(unused)]
 use std::time::Duration;
 
 #[allow(unused)]

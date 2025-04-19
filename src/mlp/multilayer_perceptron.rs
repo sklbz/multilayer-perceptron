@@ -71,8 +71,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .iter()
             .zip(self.biases.iter())
             .map(|(matrix, bias)| -> Vector<f64> {
+                let value = current.clone();
                 current = matrix.mul(&current).add(bias);
-                current.clone()
+                value
             })
             .collect::<Matrix<f64>>()
     }
