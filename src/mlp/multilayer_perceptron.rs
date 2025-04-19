@@ -1,9 +1,10 @@
+use super::backpropagation::*;
 use super::utils::*;
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
-use crate::linear_algebra::grid_display::*;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
+use crate::mlp::backpropagation::extend_gradient;
 
 pub(crate) struct MultiLayerPerceptron {
     architecture: Vector<usize>,
@@ -51,17 +52,13 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn calc(&self, input: Vector<f64>) -> Vector<f64> {
-        println!("Input: {:?}", input.clone());
         let mut result = input;
 
         self.weights
             .iter()
             .zip(self.biases.iter())
             .for_each(|(matrix, bias)| {
-                println!("Matrix: {:?}", matrix.clone());
-                matrix.display();
                 result = matrix.mul(&result).add(bias);
-                println!("Result: {:?}", result.clone());
             });
 
         result.to_vec()
@@ -91,14 +88,16 @@ impl NeuralNetwork for MultiLayerPerceptron {
             weights, biases, ..
         } = self.gradient(database);
 
+        // DEBUG--------------------------------------------------------------------------------------
+        println!("\n Weight \n");
         fn size(matrix: &Matrix<f64>) {
             println!("matrix size: {0}x{1}", matrix.len(), matrix[0].len());
             println!("matrix: {:?}", matrix);
         }
-
         self.weights.iter().for_each(|matrix| size(matrix));
-
+        println!("\n Gradient \n");
         weights.iter().for_each(|matrix| size(matrix));
+        // --------------------------------------------------------------------------------------
 
         self.weights = self.weights.sub(&weights);
         self.biases = self.biases.sub(&biases);
@@ -107,87 +106,14 @@ impl NeuralNetwork for MultiLayerPerceptron {
     fn gradient(&self, database: Database) -> NeuralNetGradient {
         let gradients = self.inner_gradients(database);
 
-        //TODO: test all this mess
-        fn backprop(
-            chain: StepwiseGradients,
-            grad: NeuralNetGradient,
-            depth: usize,
-        ) -> NeuralNetGradient {
-            if depth == 0 {
-                return grad;
-            }
+        let initial_grad = extract_last_layer(gradients.results);
 
-            let weight: &Matrix<f64> = &chain.weights[depth - 1];
-            let activation: &Matrix<f64> = &chain.activations[depth - 1];
-
-            println!("Layer size: {}", grad.neurons[0].len());
-            println!(
-                "Activation partials size: {0}x{1}",
-                activation.len(),
-                activation[0].len()
-            );
-            println!();
-
-            grad.neurons[0]
-                .iter()
-                .map(|neuron: &f64| neuron.trunc())
-                .collect::<Vector<f64>>()
-                .display();
-
-            activation
-                .transpose()
-                .iter()
-                .map(|row: &Vector<f64>| {
-                    row.iter()
-                        .map(|neuron: &f64| neuron.trunc())
-                        .collect::<Vector<f64>>()
-                })
-                .collect::<Matrix<f64>>()
-                .display();
-
-            //                       ∂ cost
-            // previous_layer[k] = -----------
-            //                     ∂(neuron k)
-            let previous_layer: Vector<f64> = activation.transpose().mul(&grad.neurons[0].clone());
-
-            //                           ∂ cost
-            // previous_layer[k, j] = ------------
-            //                        ∂(weight kj)
-            let previous_weights = weight
-                .iter()
-                .zip(grad.neurons[0].iter())
-                .map(|(w, n): (&Vector<f64>, &f64)| w.mul(n))
-                .collect();
-
-            //                       ∂ cost
-            // previous_biases[k] = ---------
-            //                      ∂(bias k)
-            let previous_biases = grad.neurons[0].clone();
-
-            // THIS IS WEIRD
-            // I shouldn't have to wrap with vec![]
-            let neurons = grad.neurons.prepend(previous_layer);
-
-            let weights = grad.weights.prepend(previous_weights);
-
-            let biases = grad.biases.prepend(previous_biases);
-
-            let extended_grad = NeuralNetGradient {
-                neurons,
-                weights,
-                biases,
-            };
-
-            backprop(chain, extended_grad, depth - 1)
-        }
-
-        let initial_grad = NeuralNetGradient {
-            neurons: vec![gradients.results.clone()],
-            weights: vec![],
-            biases: vec![],
-        };
-
-        backprop(gradients, initial_grad, self.weights.len())
+        backprop(
+            gradients.weights,
+            gradients.activations,
+            initial_grad,
+            self.weights.len(),
+        )
     }
 
     fn inner_gradients(&self, database: Database) -> StepwiseGradients {
@@ -215,9 +141,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
             })
             .collect::<Tensor<f64>>();
 
-        //                ∂(unrectified neuron k of layer l+1)
-        // biases[l, k] = ------------------------------------ = 1
-        //                        ∂(bias k of layer l)
+        // ∂(unrectified neuron k of layer l+1)
+        // ------------------------------------ = 1
+        //         ∂(bias k of layer l)
 
         //                      ∂ cost
         // results[k] = -------------------------

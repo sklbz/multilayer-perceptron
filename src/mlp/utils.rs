@@ -96,3 +96,9 @@ pub(super) struct NeuralNetGradient {
     pub weights: Gradient<Tensor<f64>>,
     pub biases: Gradient<Matrix<f64>>,
 }
+
+pub struct GradientLayer {
+    pub neurons: Vector<f64>,
+    pub weights: Matrix<f64>,
+    pub biases: Vector<f64>,
+}
