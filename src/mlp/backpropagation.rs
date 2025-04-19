@@ -2,11 +2,13 @@ use super::utils::*;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::*;
 
+// 2025-04-19
 //TODO: test all this mess
 pub(super) fn backprop(
     weight_partials: Tensor<f64>,
     activation_partials: Tensor<f64>,
     grad: NeuralNetGradient,
+    architecture: &Vector<usize>,
     depth: usize,
 ) -> NeuralNetGradient {
     if depth == 0 {
@@ -16,12 +18,19 @@ pub(super) fn backprop(
     let weight: &Matrix<f64> = &weight_partials[depth - 1];
     let activation: &Matrix<f64> = &activation_partials[depth - 1];
 
-    let previous = previous_layer_gradient(activation, weight, grad.neurons[0].clone());
+    let previous = previous_layer_gradient(
+        activation,
+        weight,
+        grad.neurons[0].clone(),
+        architecture[depth - 1],
+        architecture[depth],
+    );
 
     backprop(
         weight_partials,
         activation_partials,
         extend_gradient(grad, previous),
+        architecture,
         depth - 1,
     )
 }
@@ -32,6 +41,8 @@ pub(super) fn previous_layer_gradient(
     activation: &Matrix<f64>,
     weight: &Matrix<f64>,
     neurons: Vector<f64>,
+    k: usize,
+    j: usize,
 ) -> GradientLayer {
     // DEBUG--------------------------------------------------------------------------------------
     println!(
@@ -41,7 +52,7 @@ pub(super) fn previous_layer_gradient(
     println!();
     fn size(name: String, matrix: &Matrix<f64>) {
         println!("{name} size: {0}x{1}", matrix.len(), matrix[0].len());
-        println!("{name}: {:?}", matrix);
+        // println!("{name}: {:?}", matrix);
     }
     println!("Layer size: {}", neurons.len());
     size("activation".to_string(), activation);
@@ -76,6 +87,29 @@ pub(super) fn previous_layer_gradient(
         "---------------------------------------------------------------------------------------------------------------------------------------------------"
     );
     // --------------------------------------------------------------------------------------
+
+    // PANIC if improper size to prevent unwanted behaviour
+
+    if previous_weights.len() != k {
+        panic!(
+            "K-Size of weight gradient doesn't match\n size: {}x{} \n expected: {}x{}",
+            previous_weights.len(),
+            previous_weights[0].len(),
+            k,
+            j
+        );
+    }
+    if previous_weights[0].len() != j {
+        panic!(
+            "K-Size of weight gradient doesn't match\n size: {}x{} \n expected: {}x{}",
+            previous_weights.len(),
+            previous_weights[0].len(),
+            k,
+            j
+        );
+    }
+
+    // ----------------------------------------------------
 
     GradientLayer {
         neurons: previous_layer,
