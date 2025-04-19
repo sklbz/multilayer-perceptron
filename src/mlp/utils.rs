@@ -2,7 +2,7 @@ use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
-pub fn into_layer(architecture: Vec<usize>) -> (Vec<usize>, Vec<usize>) {
+pub fn into_layer(architecture: &[usize]) -> (Vec<usize>, Vec<usize>) {
     let layers_count = architecture.len() - 1;
 
     let rows: Vec<usize> = architecture.get(1..).unwrap_or(&[]).to_vec();
@@ -66,7 +66,27 @@ impl Mean for Vector<f64> {
 pub(super) type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
 pub(super) struct StepwiseGradients {
     pub activations: Tensor<f64>,
-    pub weights: Matrix<f64>,
-    pub biases: Matrix<f64>,
+    pub weights: Tensor<f64>,
     pub results: Vector<f64>,
 }
+
+// ------------------------------------------------------------------------------------
+
+pub(super) trait Extend<T> {
+    fn append(self, value: T) -> Self;
+    fn prepend(self, value: T) -> Self;
+}
+
+impl<T> Extend<T> for Vec<T> {
+    fn append(mut self, value: T) -> Self {
+        self.splice((self.len() - 1)..(self.len() - 1), vec![value]);
+        self
+    }
+
+    fn prepend(mut self, value: T) -> Self {
+        self.splice(0..0, vec![value]);
+        self
+    }
+}
+
+// ------------------------------------------------------------------------------------

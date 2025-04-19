@@ -82,7 +82,7 @@ impl Mul<Vector<f64>> for Matrix<f64> {
     type Output = Vector<f64>;
 
     fn mul(self, other: &Vector<f64>) -> Self::Output {
-        self.into_iter().map(|x| x.mul(other)).collect()
+        self.iter().map(|x| x.mul(other)).collect()
     }
 }
 
@@ -97,6 +97,15 @@ impl Mul<Matrix<f64>> for Matrix<f64> {
     type Output = Matrix<f64>;
 
     fn mul(self, _other: &Matrix<f64>) -> Self::Output {
-        self
+        todo!("Matrix multiplication");
+    }
+}
+
+//------------------------------------------------------------------------------
+impl Mul<Vector<f64>> for Tensor<f64> {
+    type Output = Matrix<f64>;
+
+    fn mul(self, _other: &Vector<f64>) -> Self::Output {
+        self[0].clone()
     }
 }

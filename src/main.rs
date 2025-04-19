@@ -2,7 +2,8 @@ mod linear_algebra;
 mod mlp;
 mod testing;
 
-use crate::testing::mlp::test;
+#[allow(unused)]
+use crate::testing::matrix_vec_product::test;
 
 fn main() {
     test();
