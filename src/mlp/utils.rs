@@ -63,8 +63,8 @@ impl Mean for Vector<f64> {
 
 // ------------------------------------------------------------------------------------
 
-pub(super) type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
-pub(super) struct StepwiseGradients {
+pub(crate) type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
+pub(crate) struct StepwiseGradients {
     pub activations: Tensor<f64>,
     pub weights: Tensor<f64>,
     pub results: Vector<f64>,
@@ -91,7 +91,7 @@ impl<T> Extend<T> for Vec<T> {
 
 // ------------------------------------------------------------------------------------
 pub(super) type Gradient<T> = T;
-pub(super) struct NeuralNetGradient {
+pub(crate) struct NeuralNetGradient {
     pub neurons: Gradient<Matrix<f64>>,
     pub weights: Gradient<Tensor<f64>>,
     pub biases: Gradient<Matrix<f64>>,
