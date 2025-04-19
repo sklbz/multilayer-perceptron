@@ -1,10 +1,10 @@
 use super::backpropagation::*;
 use super::utils::*;
+
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
-use crate::mlp::backpropagation::extend_gradient;
 
 pub(crate) struct MultiLayerPerceptron {
     architecture: Vector<usize>,
