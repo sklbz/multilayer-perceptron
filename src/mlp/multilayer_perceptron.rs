@@ -19,6 +19,8 @@ pub(crate) trait NeuralNetwork {
 
     fn backpropagation(&mut self, database: Database);
 
+    fn gradient(&self, database: Database) -> NeuralNetGradient;
+
     fn error_function(&self, database: Database) -> f64;
 
     fn error_gradient(&self, database: Database) -> Vector<f64>;
@@ -80,13 +82,10 @@ impl NeuralNetwork for MultiLayerPerceptron {
             return;
         }
 
-        type Gradient<T> = T;
-        struct NeuralNetGradient {
-            pub neurons: Gradient<Matrix<f64>>,
-            pub weights: Gradient<Tensor<f64>>,
-            pub biases: Gradient<Matrix<f64>>,
-        }
+        let gradient = self.gradient(database);
+    }
 
+    fn gradient(&self, database: Database) -> NeuralNetGradient {
         let gradients = self.inner_gradients(database);
 
         //TODO: test all this mess
@@ -144,7 +143,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             biases: vec![],
         };
 
-        let _grad = backprop(gradients, initial_grad, self.weights.len());
+        backprop(gradients, initial_grad, self.weights.len())
     }
 
     fn inner_gradients(&self, database: Database) -> StepwiseGradients {

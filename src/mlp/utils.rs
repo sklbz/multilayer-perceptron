@@ -90,3 +90,9 @@ impl<T> Extend<T> for Vec<T> {
 }
 
 // ------------------------------------------------------------------------------------
+pub(super) type Gradient<T> = T;
+pub(super) struct NeuralNetGradient {
+    pub neurons: Gradient<Matrix<f64>>,
+    pub weights: Gradient<Tensor<f64>>,
+    pub biases: Gradient<Matrix<f64>>,
+}
