@@ -43,6 +43,7 @@ pub(super) fn previous_layer_gradient(
         println!("{name} size: {0}x{1}", matrix.len(), matrix[0].len());
         println!("{name}: {:?}", matrix);
     }
+    println!("Layer size: {}", neurons.len());
     size("activation".to_string(), activation);
     size("weight".to_string(), weight);
     println!();
@@ -51,10 +52,12 @@ pub(super) fn previous_layer_gradient(
     );
     // --------------------------------------------------------------------------------------
 
+    println!(">>>>>");
     //                       ∂ cost
     // previous_layer[k] = -----------
     //                     ∂(neuron k)
     let previous_layer: Vector<f64> = activation.transpose().mul(&neurons.clone());
+    println!("<<<<<");
 
     //                             ∂ cost
     // previous_weights[k, j] = ------------
@@ -83,9 +86,9 @@ pub(super) fn previous_layer_gradient(
 
 pub(super) fn extend_gradient(grad: NeuralNetGradient, layer: GradientLayer) -> NeuralNetGradient {
     NeuralNetGradient {
-        neurons: grad.neurons.append(layer.neurons),
-        weights: grad.weights.append(layer.weights),
-        biases: grad.biases.append(layer.biases),
+        neurons: grad.neurons.prepend(layer.neurons),
+        weights: grad.weights.prepend(layer.weights),
+        biases: grad.biases.prepend(layer.biases),
     }
 }
 

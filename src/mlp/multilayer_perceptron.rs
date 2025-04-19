@@ -89,17 +89,6 @@ impl NeuralNetwork for MultiLayerPerceptron {
             weights, biases, ..
         } = self.gradient(database);
 
-        // DEBUG--------------------------------------------------------------------------------------
-        println!("\n Weight \n");
-        fn size(matrix: &Matrix<f64>) {
-            println!("matrix size: {0}x{1}", matrix.len(), matrix[0].len());
-            println!("matrix: {:?}", matrix);
-        }
-        self.weights.iter().for_each(|matrix| size(matrix));
-        println!("\n Gradient \n");
-        weights.iter().for_each(|matrix| size(matrix));
-        // --------------------------------------------------------------------------------------
-
         self.weights = self.weights.sub(&weights);
         self.biases = self.biases.sub(&biases);
     }
