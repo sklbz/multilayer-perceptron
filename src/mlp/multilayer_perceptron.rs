@@ -90,8 +90,10 @@ impl NeuralNetwork for MultiLayerPerceptron {
             weights, biases, ..
         } = self.gradient(database);
 
-        self.weights = self.weights.sub(&weights);
-        self.biases = self.biases.sub(&biases);
+        let momentum: f64 = 0.1;
+
+        self.weights = self.weights.sub(&weights.mul(&momentum));
+        self.biases = self.biases.sub(&biases.mul(&momentum));
     }
 
     fn gradient(&self, database: Database) -> NeuralNetGradient {
