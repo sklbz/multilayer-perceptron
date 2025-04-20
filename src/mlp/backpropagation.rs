@@ -22,8 +22,8 @@ pub(super) fn backprop(
         activation,
         weight,
         grad.neurons[0].clone(),
-        architecture[depth - 1],
         architecture[depth],
+        architecture[depth - 1],
     );
 
     backprop(
@@ -44,7 +44,7 @@ pub(super) fn previous_layer_gradient(
     k: usize,
     j: usize,
 ) -> GradientLayer {
-    // DEBUG--------------------------------------------------------------------------------------
+    /* // DEBUG--------------------------------------------------------------------------------------
     println!(
         "---------------------------------------------------------------------------------------------------------------------------------------------------"
     );
@@ -58,6 +58,7 @@ pub(super) fn previous_layer_gradient(
     size("activation".to_string(), activation);
     size("weight".to_string(), weight);
     // --------------------------------------------------------------------------------------
+    */
 
     //                       ∂ cost
     // previous_layer[k] = -----------
@@ -80,12 +81,14 @@ pub(super) fn previous_layer_gradient(
     //                      ∂(bias k)
     let previous_biases = neurons.clone();
 
+    /*
     // DEBUG--------------------------------------------------------------------------------------
     size("previous_weights".to_string(), &previous_weights);
     println!();
     println!(
         "---------------------------------------------------------------------------------------------------------------------------------------------------"
     );
+    */
     // --------------------------------------------------------------------------------------
 
     // PANIC if improper size to prevent unwanted behaviour
