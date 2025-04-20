@@ -21,7 +21,7 @@ pub fn test() {
         (vec![-1f64, -1f64], vec![0f64], 1f64),
     ];
 
-    let test_input = vec![0f64, 0f64];
+    let test_input = vec![2f64, 2f64];
 
     for i in 1..50 {
         mlp.backpropagation(database.clone());
