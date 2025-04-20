@@ -21,12 +21,15 @@ pub fn test() {
         (vec![-1f64, -1f64], vec![0f64], 1f64),
     ];
 
-    mlp.backpropagation(database.clone());
+    let test_input = vec![0f64, 0f64];
 
-    sleep(Duration::from_millis(1000));
+    for i in 1..50 {
+        mlp.backpropagation(database.clone());
 
-    let test = mlp.calc(vec![0f64, 0f64]);
+        let test = mlp.calc(test_input.clone());
 
-    println!();
-    println!("TEST: {:?}", test);
+        println!();
+        println!("TEST {i}: {:?}", test);
+        sleep(Duration::from_millis(250));
+    }
 }

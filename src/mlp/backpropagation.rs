@@ -44,22 +44,6 @@ pub(super) fn previous_layer_gradient(
     k: usize,
     j: usize,
 ) -> GradientLayer {
-    /* // DEBUG--------------------------------------------------------------------------------------
-    println!(
-        "---------------------------------------------------------------------------------------------------------------------------------------------------"
-    );
-    println!("DEBUG");
-    println!();
-    fn size(name: String, matrix: &Matrix<f64>) {
-        println!("{name} size: {0}x{1}", matrix.len(), matrix[0].len());
-        // println!("{name}: {:?}", matrix);
-    }
-    println!("Layer size: {}", neurons.len());
-    size("activation".to_string(), activation);
-    size("weight".to_string(), weight);
-    // --------------------------------------------------------------------------------------
-    */
-
     //                       ∂ cost
     // previous_layer[k] = -----------
     //                     ∂(neuron k)
@@ -80,16 +64,6 @@ pub(super) fn previous_layer_gradient(
     // previous_biases[k] = ---------
     //                      ∂(bias k)
     let previous_biases = neurons.clone();
-
-    /*
-    // DEBUG--------------------------------------------------------------------------------------
-    size("previous_weights".to_string(), &previous_weights);
-    println!();
-    println!(
-        "---------------------------------------------------------------------------------------------------------------------------------------------------"
-    );
-    */
-    // --------------------------------------------------------------------------------------
 
     // PANIC if improper size to prevent unwanted behaviour
 
