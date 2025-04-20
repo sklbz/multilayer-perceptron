@@ -11,15 +11,18 @@ pub fn weight_partial(
 
     database
         .iter()
-        .map(|(input, _, _)| calc(input.clone()))
+        .map(|(input, _, _)| calc(input.to_vec()))
         .collect::<Tensor<f64>>()
         .mean()
         .iter()
         .zip(0..layer_count)
         .map(|(vec, l): (&Vector<f64>, usize)| -> Matrix<f64> {
-            vec.iter()
-                .map(|partial: &f64| -> Vector<f64> { vec![*partial; architecture[l + 1]] })
-                .collect::<Matrix<f64>>()
+            /*
+             *   vec.iter()
+             *   .map(|partial: &f64| -> Vector<f64> { vec![*partial; architecture[l + 1]] })
+             *   .collect::<Matrix<f64>>()
+             */
+            vec![vec.clone(); architecture[l + 1]]
         })
         .collect::<Tensor<f64>>()
 }
