@@ -20,7 +20,7 @@ pub(crate) trait NeuralNetwork {
 
     fn calc_all(&self, input: Vector<f64>) -> Matrix<f64>;
 
-    fn backpropagation(&mut self, database: Database);
+    fn backpropagation(&mut self, database: Database, iterations: usize, momentum: f64);
 
     fn gradient(&self, database: Database) -> NeuralNetGradient;
 
@@ -79,21 +79,21 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .collect::<Matrix<f64>>()
     }
 
-    fn backpropagation(&mut self, database: Database) {
-        let error = self.error_function(database.clone());
+    fn backpropagation(&mut self, database: Database, iterations: usize, momentum: f64) {
+        for _ in 0..iterations {
+            let error = self.error_function(database.clone());
 
-        if error == 0.0 {
-            return;
+            if error == 0.0 {
+                return;
+            }
+
+            let NeuralNetGradient {
+                weights, biases, ..
+            } = self.gradient(database.clone());
+
+            self.weights = self.weights.sub(&weights.mul(&momentum));
+            self.biases = self.biases.sub(&biases.mul(&momentum));
         }
-
-        let NeuralNetGradient {
-            weights, biases, ..
-        } = self.gradient(database);
-
-        let momentum: f64 = 0.1;
-
-        self.weights = self.weights.sub(&weights.mul(&momentum));
-        self.biases = self.biases.sub(&biases.mul(&momentum));
     }
 
     fn gradient(&self, database: Database) -> NeuralNetGradient {
