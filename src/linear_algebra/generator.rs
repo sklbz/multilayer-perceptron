@@ -13,7 +13,7 @@ impl Generator<Vector<f64>> for usize {
 
         let mut vec = Vec::new();
         for _ in 0..self {
-            vec.push(rng.random::<f64>());
+            vec.push(rng.random::<f64>() * 100.0 - 50.0);
         }
 
         vec
