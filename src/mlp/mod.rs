@@ -1,5 +1,4 @@
-pub(crate) mod backpropagation;
-pub(crate) mod calc;
-pub(crate) mod multilayer_perceptron;
-pub(crate) mod partial_gradient;
-pub(crate) mod utils;
+pub mod calc;
+pub mod multilayer_perceptron;
+pub mod partial_gradient;
+pub mod utils;

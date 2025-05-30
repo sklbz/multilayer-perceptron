@@ -7,13 +7,13 @@ use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 
-pub(crate) struct MultiLayerPerceptron {
+pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
 }
 
-pub(crate) trait NeuralNetwork {
+pub trait NeuralNetwork {
     fn new(architecture: Vector<usize>) -> Self;
 
     fn calc(&self, input: Vector<f64>) -> Vector<f64>;
