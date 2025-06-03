@@ -63,8 +63,8 @@ impl Mean for Vector<f64> {
 
 // ------------------------------------------------------------------------------------
 
-pub(crate) type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
-pub(crate) struct StepwiseGradients {
+pub type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
+pub struct StepwiseGradients {
     pub activations: Tensor<f64>,
     pub weights: Tensor<f64>,
     pub results: Vector<f64>,
