@@ -1,4 +1,5 @@
 use super::backpropagation::*;
+use super::io::parse_params;
 use super::partial_gradient::weight_partial;
 use super::utils::*;
 
@@ -6,6 +7,10 @@ use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
+
+use std::fs::File;
+use std::io;
+use std::path::Path;
 
 pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
@@ -33,6 +38,8 @@ pub trait NeuralNetwork {
     fn display(&self);
 
     fn params(&self) -> String;
+
+    fn load_params(&mut self, file_path: &str);
 }
 
 impl NeuralNetwork for MultiLayerPerceptron {
@@ -192,5 +199,15 @@ impl NeuralNetwork for MultiLayerPerceptron {
             "Architecture: {:?}\nWeights: {:?}\nBiases: {:?}",
             self.architecture, self.weights, self.biases
         )
+    }
+
+    fn load_params(&mut self, file_path: &str) {
+        let path = Path::new(file_path);
+        let file = File::open(path).unwrap();
+        let content = io::read_to_string(file).unwrap();
+        let (architecture, weights, biases) = parse_params(content);
+        self.architecture = architecture;
+        self.weights = weights;
+        self.biases = biases;
     }
 }
