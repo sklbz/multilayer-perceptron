@@ -1,5 +1,7 @@
 use crate::linear_algebra::matrix::*;
 
+use super::multilayer_perceptron::MultiLayerPerceptron;
+
 pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) {
     let binding = input
         .replace("Architecture", "")
@@ -18,6 +20,7 @@ pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) 
         .map(|s| s.parse::<usize>().unwrap())
         .collect();
 
+    // This will not work
     let weights: Tensor<f64> = lines
         .next()
         .unwrap()
@@ -49,4 +52,37 @@ pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) 
         .collect();
 
     (architecture, weights, biases)
+}
+
+pub trait Save {
+    fn save(&self, path: String);
+    fn load(path: String) -> Self;
+}
+
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
+use std::path::Path;
+
+use bincode::{config, decode_from_std_read, encode_into_std_write};
+
+impl Save for MultiLayerPerceptron {
+    fn save(&self, path: String) {
+        let config = config::standard();
+
+        let path = Path::new(&path);
+        let file = File::create(path).unwrap();
+        let mut writer = BufWriter::new(file);
+
+        encode_into_std_write(self, &mut writer, config).unwrap();
+    }
+
+    fn load(path: String) -> Self {
+        let config = config::standard();
+
+        let path = Path::new(&path);
+        let file = File::open(path).unwrap();
+        let mut reader = BufReader::new(file);
+
+        decode_from_std_read(&mut reader, config).unwrap()
+    }
 }

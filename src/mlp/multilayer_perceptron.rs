@@ -12,6 +12,9 @@ use std::fs::File;
 use std::io;
 use std::path::Path;
 
+use bincode::{Decode, Encode};
+
+#[derive(Encode, Decode)]
 pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
     weights: Tensor<f64>,
