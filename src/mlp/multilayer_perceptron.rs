@@ -31,6 +31,8 @@ pub trait NeuralNetwork {
     fn inner_gradients(&self, database: Database) -> StepwiseGradients;
 
     fn display(&self);
+
+    fn params(&self) -> String;
 }
 
 impl NeuralNetwork for MultiLayerPerceptron {
@@ -183,5 +185,12 @@ impl NeuralNetwork for MultiLayerPerceptron {
         println!("{:?}", self.weights);
         println!("Biases:");
         println!("{:?}", self.biases);
+    }
+
+    fn params(&self) -> String {
+        format!(
+            "Architecture: {:?}\nWeights: {:?}\nBiases: {:?}",
+            self.architecture, self.weights, self.biases
+        )
     }
 }
