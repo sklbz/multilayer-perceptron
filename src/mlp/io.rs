@@ -26,7 +26,10 @@ pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) 
         .map(|sup| -> Matrix<f64> {
             sup.split("[")
                 .map(|sub| {
-                    sub.split("[")
+                    sub.split_whitespace()
+                        .filter(|s| !s.is_empty())
+                        .filter(|s| s != &" ")
+                        .filter(|s| s != &"[")
                         .map(|s| match s.parse::<f64>() {
                             Ok(f) => f,
                             Err(_) => panic!("Error trying to parse: {}", s),
