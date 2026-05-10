@@ -1,3 +1,4 @@
+pub mod activation_function;
 pub mod backpropagation;
 pub mod calc;
 pub mod io;
