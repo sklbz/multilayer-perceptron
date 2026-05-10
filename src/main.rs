@@ -1,10 +1,7 @@
 mod linear_algebra;
 mod mlp;
-mod testing;
-
-#[allow(unused)]
-use crate::testing::backprop::test;
+mod test;
 
 fn main() {
-    test();
+    println!("Hello!")
 }

@@ -1,6 +1,5 @@
 use crate::mlp::multilayer_perceptron::*;
 
-#[allow(unused)]
 pub fn test() {
     let mut mlp = MultiLayerPerceptron::new(vec![2, 64, 64, 64, 64, 3]);
 

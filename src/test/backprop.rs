@@ -1,11 +1,8 @@
 use crate::mlp::multilayer_perceptron::*;
 
-#[allow(unused)]
 use std::thread::sleep;
-#[allow(unused)]
 use std::time::Duration;
 
-#[allow(unused)]
 pub fn test() {
     let mut mlp = MultiLayerPerceptron::new(vec![2, 1]);
 
@@ -38,6 +35,5 @@ pub fn test() {
 
         println!();
         println!("TEST {i}: {:?}", test);
-        sleep(Duration::from_millis(50));
     }
 }

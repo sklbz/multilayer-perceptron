@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[test]
 fn simple_test() {
     use multilayer_perceptron::mlp::activation_function::Activation;
 
