@@ -2,6 +2,7 @@ use super::utils::*;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::*;
 use crate::mlp::activation_function::Activation;
+use crate::mlp::activation_function::Function;
 
 /// Produit de Hadamard (élément par élément) entre deux vecteurs.
 fn hadamard(a: &Vector<f64>, b: &Vector<f64>) -> Vector<f64> {

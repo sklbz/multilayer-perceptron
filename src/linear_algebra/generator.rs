@@ -52,10 +52,10 @@ impl Generator<Matrix<f64>> for Vector<usize> {
     fn generate_random(self) -> Matrix<f64> {
         let mut matrix = Vector::new();
 
-        for i in 0..self.len() {
+        (0..self.len()).for_each(|i| {
             let row = self[i].generate_random();
             matrix.push(row);
-        }
+        });
 
         matrix
     }
