@@ -68,7 +68,7 @@ pub trait NeuralNetwork {
 
     fn error_gradient(&self, database: Database) -> Vector<f64>;
 
-    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize);
+    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize, f64);
 
     fn load(filename: &str) -> Self;
     fn save(&self) -> std::io::Result<String>;
@@ -168,13 +168,12 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 "#".repeat(progress),
                 " ".repeat(size - progress)
             );
-            let error = self.error_function(database.clone());
 
-            if error == 0.0 {
+            let (grad, _n, error) = self.inner_gradients(database.clone());
+
+            if error <= 0.1 {
                 return;
             }
-
-            let (grad, _n) = self.inner_gradients(database.clone());
 
             // Mise à jour : W_l -= lr * (1/n) * Σ ∂C/∂W_l
             // Les gradients dans `grad` sont déjà moyennés sur le dataset
@@ -185,13 +184,14 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn gradient(&self, database: Database) -> NeuralNetGradient {
-        let (grad, _) = self.inner_gradients(database);
+        let (grad, _, _) = self.inner_gradients(database);
         grad
     }
 
     /// Calcule le gradient moyen sur tout le dataset via backprop.
-    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize) {
+    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize, f64) {
         let n = database.len();
+        let mut acc_error = 0.0;
 
         // Accumulateurs (même shape que weights/biases)
         let mut acc_weights: Tensor<f64> = self
@@ -210,6 +210,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             let x_final = self
                 .activation
                 .apply(pass.pre_activations[pass.pre_activations.len() - 1].clone());
+            acc_error += square_error(&x_final, target) * coefficient;
             let error_grad: Vector<f64> = x_final
                 .iter()
                 .zip(target.iter())
@@ -260,6 +261,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 biases: mean_biases,
             },
             n,
+            acc_error,
         )
     }
 
