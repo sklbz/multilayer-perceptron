@@ -1,116 +1,88 @@
 use super::utils::*;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::*;
+use crate::mlp::activation_function::Activation;
 
-// 2025-04-19
-// TODO: test all this mess
-pub(super) fn backprop(
-    weight_partials: Tensor<f64>,
-    activation_partials: Tensor<f64>,
-    grad: NeuralNetGradient,
-    architecture: &Vector<usize>,
-    depth: usize,
-) -> NeuralNetGradient {
-    if depth == 0 {
-        return grad;
-    }
-
-    let weight: &Matrix<f64> = &weight_partials[depth - 1];
-    let activation: &Matrix<f64> = &activation_partials[depth - 1];
-
-    let previous = previous_layer_gradient(
-        activation,
-        weight,
-        grad.neurons[0].clone(),
-        architecture[depth],
-        architecture[depth - 1],
+/// Produit de Hadamard (élément par élément) entre deux vecteurs.
+fn hadamard(a: &Vector<f64>, b: &Vector<f64>) -> Vector<f64> {
+    assert_eq!(
+        a.len(),
+        b.len(),
+        "Hadamard: vecteurs de tailles différentes ({} vs {})",
+        a.len(),
+        b.len()
     );
-
-    backprop(
-        weight_partials,
-        activation_partials,
-        extend_gradient(grad, previous),
-        architecture,
-        depth - 1,
-    )
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).collect()
 }
 
-//----------------------------------------------------------------------------------------------
+/// Point d'entrée de la backpropagation.
+///
+/// # Arguments
+/// - `weights`      : W_l pour chaque couche l, shape [L][k][j]
+/// - `pre_acts`     : z_l = W_l * x_{l-1} + b_l pour chaque couche l, shape [L][k]
+/// - `inputs`       : x_{l-1} = f(z_{l-1}) en entrée de chaque couche, shape [L][j]
+/// - `error_grad`   : ∇_a(C) = ∂C/∂x_L, gradient de l'erreur par rapport à la sortie finale
+/// - `activation`   : fonction d'activation (pour sa dérivée f')
+///
+/// # Retourne
+/// `NeuralNetGradient` contenant δ_l, ∂C/∂W_l et ∂C/∂b_l pour chaque couche.
+pub(super) fn backprop(
+    weights: &Tensor<f64>,
+    pre_acts: &Matrix<f64>,
+    inputs: &Matrix<f64>,
+    error_grad: Vector<f64>,
+    activation: &Activation,
+) -> NeuralNetGradient {
+    let depth = weights.len(); // nombre de couches
 
-pub(super) fn previous_layer_gradient(
-    activation: &Matrix<f64>,
-    weight: &Matrix<f64>,
-    neurons: Vector<f64>,
-    k: usize,
-    j: usize,
-) -> GradientLayer {
-    //                       ∂ cost
-    // previous_layer[k] = -----------
-    //                     ∂(neuron k)
-    let previous_layer: Vector<f64> = activation.transpose().mul(&neurons.clone());
+    // δ_L = ∇_a(C) ⊙ f'(z_L)
+    let f_prime_last = activation.gradient(pre_acts[depth - 1].clone());
+    let delta_last = hadamard(&error_grad, &f_prime_last);
 
-    //                             ∂ cost
-    // previous_weights[k, j] = ------------
-    //                          ∂(weight kj)
-    let previous_weights: Matrix<f64> = weight
-        .iter()
-        .zip(neurons.iter())
-        .map(|(weight_partial, neuron_partial): (&Vector<f64>, &f64)| {
-            weight_partial.mul(neuron_partial)
-        })
-        .collect::<Matrix<f64>>();
+    // Initialisation avec la dernière couche
+    let mut deltas: Matrix<f64> = vec![delta_last.clone()];
+    let mut weight_grads: Tensor<f64> = vec![outer_product(&delta_last, &inputs[depth - 1])];
+    let mut bias_grads: Matrix<f64> = vec![delta_last];
 
-    //                       ∂ cost
-    // previous_biases[k] = ---------
-    //                      ∂(bias k)
-    let previous_biases = neurons.clone();
+    // Rétropropagation couche par couche, de L-1 jusqu'à 0
+    for l in (0..depth - 1).rev() {
+        // δ_l = (W_{l+1}ᵀ · δ_{l+1}) ⊙ f'(z_l)
+        let delta_next = &deltas[0]; // deltas est en ordre inverse, [0] = couche l+1
+        let w_next = &weights[l + 1]; // W_{l+1}
 
-    // PANIC if improper size to prevent unwanted behaviour
+        // W_{l+1}ᵀ · δ_{l+1}
+        let propagated: Vector<f64> = w_next.transpose().mul(delta_next);
 
-    if previous_weights.len() != k {
-        panic!(
-            "K-Size of weight gradient doesn't match\n size: {}x{} \n expected: {}x{}",
-            previous_weights.len(),
-            previous_weights[0].len(),
-            k,
-            j
-        );
+        // ⊙ f'(z_l)
+        let f_prime = activation.gradient(pre_acts[l].clone());
+        let delta_l = hadamard(&propagated, &f_prime);
+
+        // ∂C/∂W_l = δ_l · x_{l-1}ᵀ  (produit externe)
+        let weight_grad_l = outer_product(&delta_l, &inputs[l]);
+
+        // ∂C/∂b_l = δ_l
+        let bias_grad_l = delta_l.clone();
+
+        // Prepend pour garder l'ordre [couche 0, ..., couche L]
+        deltas = deltas.prepend(delta_l);
+        weight_grads = weight_grads.prepend(weight_grad_l);
+        bias_grads = bias_grads.prepend(bias_grad_l);
     }
-    if previous_weights[0].len() != j {
-        panic!(
-            "K-Size of weight gradient doesn't match\n size: {}x{} \n expected: {}x{}",
-            previous_weights.len(),
-            previous_weights[0].len(),
-            k,
-            j
-        );
-    }
 
-    // ----------------------------------------------------
-
-    GradientLayer {
-        neurons: previous_layer,
-        weights: previous_weights,
-        biases: previous_biases,
-    }
-}
-
-//----------------------------------------------------------------------------------------------
-
-pub(super) fn extend_gradient(grad: NeuralNetGradient, layer: GradientLayer) -> NeuralNetGradient {
     NeuralNetGradient {
-        neurons: grad.neurons.prepend(layer.neurons),
-        weights: grad.weights.prepend(layer.weights),
-        biases: grad.biases.prepend(layer.biases),
+        deltas,
+        weights: weight_grads,
+        biases: bias_grads,
     }
 }
 
-//----------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------
 
-pub(super) fn extract_last_layer(results: Gradient<Vector<f64>>) -> NeuralNetGradient {
-    NeuralNetGradient {
-        neurons: vec![results],
-        weights: vec![],
-        biases: vec![],
-    }
+/// Produit externe : u · vᵀ, retourne une matrice [len(u)][len(v)].
+///
+/// ∂C/∂W_l[k, j] = δ_l[k] * x_{l-1}[j]
+fn outer_product(u: &Vector<f64>, v: &Vector<f64>) -> Matrix<f64> {
+    u.iter()
+        .map(|ui| v.iter().map(|vj| ui * vj).collect())
+        .collect()
 }

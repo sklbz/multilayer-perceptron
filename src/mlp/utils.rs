@@ -4,11 +4,8 @@ use crate::linear_algebra::product::Mul;
 
 pub fn into_layer(architecture: &[usize]) -> (Vec<usize>, Vec<usize>) {
     let layers_count = architecture.len() - 1;
-
     let rows: Vec<usize> = architecture.get(1..).unwrap_or(&[]).to_vec();
-
     let columns: Vec<usize> = architecture.get(..layers_count).unwrap_or(&[]).to_vec();
-
     (rows, columns)
 }
 
@@ -32,9 +29,7 @@ impl Mean for Tensor<f64> {
 
     fn mean(&self) -> Self::Output {
         let mut mean = self[0].clone().mul(&0f64);
-
         self.iter().for_each(|matrix| mean = mean.add(matrix));
-
         let multiplier = 1f64 / self.len() as f64;
         mean.mul(&multiplier)
     }
@@ -45,7 +40,6 @@ impl Mean for Matrix<f64> {
 
     fn mean(&self) -> Self::Output {
         let mut mean = vec![0f64; self[0].len()];
-
         self.iter().for_each(|vector| mean = mean.add(vector));
         let multiplier = 1f64 / self.len() as f64;
         mean.mul(&multiplier)
@@ -64,9 +58,19 @@ impl Mean for Vector<f64> {
 // ------------------------------------------------------------------------------------
 
 pub type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
+
+/// Résultat du forward pass pour un exemple donné.
+/// Contient tout ce dont la backprop a besoin.
+pub struct ForwardPass {
+    /// x_{l-1} : activation en entrée de chaque couche (= sortie après f de la couche précédente)
+    /// pre_activations[l] = z_l = W_l * x_{l-1} + b_l
+    pub inputs: Matrix<f64>,
+    /// z_l : pré-activation de chaque couche (avant application de f)
+    pub pre_activations: Matrix<f64>,
+}
+
 pub struct StepwiseGradients {
-    pub activations: Tensor<f64>,
-    pub weights: Tensor<f64>,
+    pub forward_passes: Vec<ForwardPass>,
     pub results: Vector<f64>,
 }
 
@@ -90,17 +94,15 @@ impl<T> Extend<T> for Vec<T> {
 }
 
 // ------------------------------------------------------------------------------------
-pub(super) type Gradient<T> = T;
-pub(crate) struct NeuralNetGradient {
-    pub activation: Gradient<Vector<f64>>,
-    pub neurons: Gradient<Matrix<f64>>,
-    pub weights: Gradient<Tensor<f64>>,
-    pub biases: Gradient<Matrix<f64>>,
-}
 
-pub struct GradientLayer {
-    pub activation: Vector<f64>,
-    pub neurons: Vector<f64>,
-    pub weights: Matrix<f64>,
-    pub biases: Vector<f64>,
+pub(crate) type Gradient<T> = T;
+
+/// Gradient complet du réseau, couche par couche.
+pub(crate) struct NeuralNetGradient {
+    /// δ_l : gradient d'erreur par rapport aux pré-activations de chaque couche
+    pub deltas: Gradient<Matrix<f64>>,
+    /// ∂C/∂W_l pour chaque couche
+    pub weights: Gradient<Tensor<f64>>,
+    /// ∂C/∂b_l = δ_l pour chaque couche
+    pub biases: Gradient<Matrix<f64>>,
 }
