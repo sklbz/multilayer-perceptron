@@ -3,6 +3,7 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::*;
 use crate::mlp::activation_function::Activation;
 use crate::mlp::activation_function::Function;
+use crate::mlp::tensor_ops::{matvec_t, outer};
 
 /// Produit de Hadamard (élément par élément) entre deux vecteurs.
 fn hadamard(a: &Vector<f64>, b: &Vector<f64>) -> Vector<f64> {
@@ -42,7 +43,7 @@ pub(super) fn backprop(
 
     // Initialisation avec la dernière couche
     let mut deltas: Matrix<f64> = vec![delta_last.clone()];
-    let mut weight_grads: Tensor<f64> = vec![outer_product(&delta_last, &inputs[depth - 1])];
+    let mut weight_grads: Tensor<f64> = vec![outer(&delta_last, &inputs[depth - 1])];
     let mut bias_grads: Matrix<f64> = vec![delta_last];
 
     // Rétropropagation couche par couche, de L-1 jusqu'à 0
@@ -52,14 +53,14 @@ pub(super) fn backprop(
         let w_next = &weights[l + 1]; // W_{l+1}
 
         // W_{l+1}ᵀ · δ_{l+1}
-        let propagated: Vector<f64> = w_next.transpose().mul(delta_next);
+        let propagated: Vector<f64> = matvec_t(w_next, delta_next);
 
         // ⊙ f'(z_l)
         let f_prime = activation.gradient(pre_acts[l].clone());
         let delta_l = hadamard(&propagated, &f_prime);
 
         // ∂C/∂W_l = δ_l · x_{l-1}ᵀ  (produit externe)
-        let weight_grad_l = outer_product(&delta_l, &inputs[l]);
+        let weight_grad_l = outer(&delta_l, &inputs[l]);
 
         // ∂C/∂b_l = δ_l
         let bias_grad_l = delta_l.clone();
@@ -75,15 +76,4 @@ pub(super) fn backprop(
         weights: weight_grads,
         biases: bias_grads,
     }
-}
-
-// ------------------------------------------------------------------------------------
-
-/// Produit externe : u · vᵀ, retourne une matrice [len(u)][len(v)].
-///
-/// ∂C/∂W_l[k, j] = δ_l[k] * x_{l-1}[j]
-fn outer_product(u: &Vector<f64>, v: &Vector<f64>) -> Matrix<f64> {
-    u.iter()
-        .map(|ui| v.iter().map(|vj| ui * vj).collect())
-        .collect()
 }
