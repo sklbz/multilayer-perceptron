@@ -20,7 +20,7 @@ fn bench_architecture(layers: Vec<usize>, iterations: usize, db_size: usize) {
     let mut net = MultiLayerPerceptron::new(layers);
 
     let start = Instant::now();
-    net.backpropagation(db, iterations, 0.001);
+    net.backpropagation(&db, iterations, 0.001);
     let elapsed = start.elapsed();
 
     println!(

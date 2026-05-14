@@ -13,5 +13,5 @@ pub fn test() {
 
     // mlp.train(database);
 
-    mlp.backpropagation(database, 10, 1.0);
+    mlp.backpropagation(&database, 10, 1.0);
 }

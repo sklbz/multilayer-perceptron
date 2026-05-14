@@ -1,8 +1,5 @@
 use crate::mlp::multilayer_perceptron::*;
 
-use std::thread::sleep;
-use std::time::Duration;
-
 pub fn test() {
     let mut mlp = MultiLayerPerceptron::new(vec![2, 1]);
 
@@ -29,7 +26,7 @@ pub fn test() {
     let test_input = vec![0.0, 0.0];
 
     for i in 1..=500 {
-        mlp.backpropagation(database.clone(), 10, 0.01);
+        mlp.backpropagation(&database, 10, 0.01);
 
         let test = mlp.calc(test_input.clone())[0];
 
