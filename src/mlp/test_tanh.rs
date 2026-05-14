@@ -51,9 +51,9 @@ mod tests {
         let mut net = MultiLayerPerceptron::new(vec![1, 8, 8, 1]);
         let dataset = tanh_dataset(40, -3.0, 3.0);
 
-        let avant = net.error_function(dataset.clone());
-        net.backpropagation(dataset.clone(), 5_000, 0.05);
-        let apres = net.error_function(dataset.clone());
+        let avant = net.error_function(&dataset);
+        net.backpropagation(&dataset, 5_000, 0.05);
+        let apres = net.error_function(&dataset);
 
         println!("\nErreur avant : {:.6}", avant);
         println!("Erreur après : {:.6}", apres);
@@ -75,7 +75,7 @@ mod tests {
         let mut net = MultiLayerPerceptron::new(vec![1, 8, 8, 1]);
         let dataset = tanh_dataset(40, -3.0, 3.0);
 
-        net.backpropagation(dataset.clone(), 5_000, 0.05);
+        net.backpropagation(&dataset, 5_000, 0.05);
 
         let predicted = net.calc(vec![0.0]);
         println!("\ntanh(0) prédit : {:.6}  (attendu ≈ 0.0)", predicted[0]);
@@ -96,7 +96,7 @@ mod tests {
         let mut net = MultiLayerPerceptron::new(vec![1, 8, 8, 1]);
         let dataset = tanh_dataset(40, -3.0, 3.0);
 
-        net.backpropagation(dataset.clone(), 5_000, 0.05);
+        net.backpropagation(&dataset, 5_000, 0.05);
 
         let scale = 3.0_f64;
         for x in [0.5_f64, 1.0, 1.5, 2.0] {
@@ -131,8 +131,8 @@ mod tests {
 
         println!("\n=== Courbe d'apprentissage ===");
         for step in 1..=5 {
-            net.backpropagation(dataset.clone(), 1_000, 0.05);
-            let err = net.error_function(dataset.clone());
+            net.backpropagation(&dataset, 1_000, 0.05);
+            let err = net.error_function(&dataset);
             println!("Itération {:>5} — erreur : {:.6}", step * 1_000, err);
         }
 

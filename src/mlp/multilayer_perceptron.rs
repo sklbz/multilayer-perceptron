@@ -10,9 +10,10 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 use crate::mlp::activation_function::Activation;
 
+use core::f64;
 use std::cmp::min;
 use std::fs::File;
-use std::io::{BufReader, Write, read_to_string};
+use std::io::{BufReader, Write, read_to_string, stdout};
 use std::path::Path;
 
 use chrono::Local;
@@ -62,15 +63,15 @@ pub trait NeuralNetwork {
     /// - `pre_activations[l]` = z_l    : W_l * x_{l-1} + b_l, avant application de f
     fn forward_pass(&self, input: Vector<f64>) -> ForwardPass;
 
-    fn backpropagation(&mut self, database: Database, iterations: usize, learning_rate: f64);
+    fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64);
 
-    fn gradient(&self, database: Database) -> NeuralNetGradient;
+    fn gradient(&self, database: &Database) -> NeuralNetGradient;
 
-    fn error_function(&self, database: Database) -> f64;
+    fn error_function(&self, database: &Database) -> f64;
 
-    fn error_gradient(&self, database: Database) -> Vector<f64>;
+    fn error_gradient(&self, database: &Database) -> Vector<f64>;
 
-    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize, f64);
+    fn inner_gradients(&self, database: &Database) -> (NeuralNetGradient, usize, f64);
 
     fn load(filename: &str) -> Self;
     fn save(&self) -> std::io::Result<String>;
@@ -78,6 +79,7 @@ pub trait NeuralNetwork {
     fn display(&self);
 
     fn params(&self) -> String;
+
     fn load_params(&mut self, file_path: &str);
 }
 
@@ -160,18 +162,23 @@ impl NeuralNetwork for MultiLayerPerceptron {
         }
     }
 
-    fn backpropagation(&mut self, database: Database, iterations: usize, learning_rate: f64) {
+    fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64) {
         let size = min(iterations, 100);
+        let min_err = f64::INFINITY;
         for i in 0..iterations {
-            let progress: usize = ((i * size) as f64 / (iterations as f64)) as usize;
-            print!("\r");
+            let progress: usize = ((i * size + 1) as f64 / (iterations as f64)) as usize;
             print!(
-                "[{0}{1}] {i}/{iterations} iterations",
+                "\r[{0}{1}] {2}/{iterations} ",
                 "#".repeat(progress),
-                " ".repeat(size - progress)
+                " ".repeat(size - progress),
+                i + 1,
             );
 
-            let (grad, _n, error) = self.inner_gradients(database.clone());
+            let (grad, _n, error) = self.inner_gradients(database);
+            let min_err = min_err.min(error);
+
+            print!("err: {:.5e}, min err: {:.5e}", error, min_err);
+            stdout().flush().unwrap();
 
             if error <= 0.1 {
                 return;
@@ -182,18 +189,17 @@ impl NeuralNetwork for MultiLayerPerceptron {
             self.weights = self.weights.sub(&grad.weights.mul(&learning_rate));
             self.biases = self.biases.sub(&grad.biases.mul(&learning_rate));
         }
-        println!();
+        print!("\r");
     }
 
-    fn gradient(&self, database: Database) -> NeuralNetGradient {
+    fn gradient(&self, database: &Database) -> NeuralNetGradient {
         let (grad, _, _) = self.inner_gradients(database);
         grad
     }
 
     /// Calcule le gradient moyen sur tout le dataset via backprop.
-    fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize, f64) {
+    fn inner_gradients(&self, database: &Database) -> (NeuralNetGradient, usize, f64) {
         let n = database.len();
-        let mut acc_error = 0.0;
 
         let (acc_weights, acc_biases, acc_error) = database
             .par_iter()
@@ -273,7 +279,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         )
     }
 
-    fn error_function(&self, database: Database) -> f64 {
+    fn error_function(&self, database: &Database) -> f64 {
         database
             .iter()
             .map(|(input, target, coefficient)| {
@@ -284,11 +290,11 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
     /// Calcule ∂C/∂x_L moyenné sur le dataset.
     /// Utilisé uniquement si on veut inspecter le gradient de sortie séparément.
-    fn error_gradient(&self, database: Database) -> Vector<f64> {
+    fn error_gradient(&self, database: &Database) -> Vector<f64> {
         let n = database.len() as f64;
         let mut sum = vec![0.0; self.architecture[self.architecture.len() - 1]];
 
-        for (input, target, coefficient) in &database {
+        for (input, target, coefficient) in database {
             let output = self.calc(input.clone());
             for k in 0..sum.len() {
                 sum[k] += 2.0 * (output[k] - target[k]) * coefficient;
