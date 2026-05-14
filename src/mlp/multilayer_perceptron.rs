@@ -4,22 +4,20 @@ use super::io::parse_params;
 use super::partial_gradient::weight_partial;
 use super::utils::*;
 
-use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
+use crate::{linear_algebra::addition::Add, mlp::activation_function::Activation};
 
 use std::fs::File;
 use std::io;
 use std::path::Path;
 
-use bincode::{Decode, Encode};
-
-#[derive(Encode, Decode)]
 pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
+    activation: &'static Activation,
 }
 
 impl MultiLayerPerceptron {
@@ -40,6 +38,7 @@ impl MultiLayerPerceptron {
             architecture,
             weights,
             biases,
+            activation: &RELU,
         }
     }
 }
@@ -84,6 +83,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             architecture,
             weights,
             biases,
+            activation: &RELU,
         }
     }
 
@@ -94,7 +94,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .iter()
             .zip(self.biases.iter())
             .for_each(|(matrix, bias)| {
-                result = RELU(matrix.mul(&result).add(bias));
+                result = self.activation.apply(matrix.mul(&result).add(bias));
             });
 
         result.to_vec()
@@ -107,8 +107,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .iter()
             .zip(self.biases.iter())
             .map(|(matrix, bias)| -> Vector<f64> {
+                let pre_activation = matrix.mul(&current).add(bias);
                 let value = current.clone();
-                current = matrix.mul(&current).add(bias);
+                current = self.activation.apply(pre_activation);
                 value
             })
             .collect::<Matrix<f64>>()
@@ -160,25 +161,14 @@ impl NeuralNetwork for MultiLayerPerceptron {
             database.clone(),
         );
 
-        /* // DEBUG------------------------------------------------------------------------------
-                println!(
-                    "---------------------------------------------------------------------------------------------------------------------------------------------------"
-                );
-                println!("DEBUG");
-                println!();
-                for (weight, grad) in self.weights.iter().zip(weights.iter()) {
-                    println!("Weight size: {}x{}", weight.len(), weight[0].len());
-                    println!("Weight gradient size: {}x{}", grad.len(), grad[0].len());
-                }
-                println!();
-                println!(
-                    "---------------------------------------------------------------------------------------------------------------------------------------------------"
-                );
-                // ------------------------------------------------------------------------------
-        */
         // ∂(unrectified neuron k of layer l+1)
         // ------------------------------------ = 1
         //         ∂(bias k of layer l)
+
+        //       ∂(neuron k of layer l+1)
+        // ------------------------------------ = 1
+        // ∂(unrectified neuron k of layer l+1)
+        let rectification = 0;
 
         //                      ∂ cost
         // results[k] = -------------------------

@@ -92,12 +92,14 @@ impl<T> Extend<T> for Vec<T> {
 // ------------------------------------------------------------------------------------
 pub(super) type Gradient<T> = T;
 pub(crate) struct NeuralNetGradient {
+    pub activation: Gradient<Vector<f64>>,
     pub neurons: Gradient<Matrix<f64>>,
     pub weights: Gradient<Tensor<f64>>,
     pub biases: Gradient<Matrix<f64>>,
 }
 
 pub struct GradientLayer {
+    pub activation: Vector<f64>,
     pub neurons: Vector<f64>,
     pub weights: Matrix<f64>,
     pub biases: Vector<f64>,

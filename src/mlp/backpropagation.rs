@@ -3,7 +3,7 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::*;
 
 // 2025-04-19
-//TODO: test all this mess
+// TODO: test all this mess
 pub(super) fn backprop(
     weight_partials: Tensor<f64>,
     activation_partials: Tensor<f64>,

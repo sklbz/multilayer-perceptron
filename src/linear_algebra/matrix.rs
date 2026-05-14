@@ -1,3 +1,12 @@
+/*pub struct Vector<T> {
+    len: u8,
+    values: Vec<T>,
+}
+pub struct Matrix<T> {
+    width: u8,
+    height: u8,
+    values: Vec<T>,
+}*/
 pub type Vector<T> = Vec<T>;
 pub type Matrix<T> = Vector<Vector<T>>;
 pub type Tensor<T> = Vector<Matrix<T>>;
