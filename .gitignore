@@ -1,1 +1,5 @@
 /target
+*.log
+*/*.log
+*.csv
+*/*.csv
