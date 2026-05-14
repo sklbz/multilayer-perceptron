@@ -1,4 +1,4 @@
-use super::activation::rectified_linear::RELU;
+use super::activation_function::Function;
 use super::backpropagation::backprop;
 use super::io::parse_params;
 use super::utils::*;
@@ -10,14 +10,20 @@ use crate::linear_algebra::product::Mul;
 use crate::mlp::activation_function::Activation;
 
 use std::fs::File;
-use std::io;
+use std::io::{BufReader, Write, read_to_string};
 use std::path::Path;
 
+use chrono::Local;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+#[derive(Serialize, Deserialize)]
 pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
-    activation: &'static Activation,
+    activation: Activation,
 }
 
 impl MultiLayerPerceptron {
@@ -36,8 +42,30 @@ impl MultiLayerPerceptron {
             architecture,
             weights,
             biases,
-            activation: &RELU,
+            activation: Activation::RELU,
         }
+    }
+
+    pub fn save(&self) -> std::io::Result<String> {
+        let now = Local::now();
+
+        let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
+
+        let json = serde_json::to_string_pretty(self).expect("Failed to serialize model");
+
+        let mut file = File::create(&filename)?;
+
+        file.write_all(json.as_bytes())?;
+
+        Ok(filename)
+    }
+
+    pub fn load(filename: &str) -> Self {
+        let file = File::open(filename).expect("Failed to open model file");
+
+        let reader = BufReader::new(file);
+
+        serde_json::from_reader(reader).expect("Failed to deserialize model")
     }
 }
 
@@ -84,7 +112,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             architecture,
             weights,
             biases,
-            activation: &RELU,
+            activation: Activation::RELU,
         }
     }
 
@@ -133,7 +161,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 return;
             }
 
-            let (grad, n) = self.inner_gradients(database.clone());
+            let (grad, _n) = self.inner_gradients(database.clone());
 
             // Mise à jour : W_l -= lr * (1/n) * Σ ∂C/∂W_l
             // Les gradients dans `grad` sont déjà moyennés sur le dataset
@@ -180,7 +208,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 &pass.pre_activations,
                 &pass.inputs,
                 error_grad,
-                self.activation,
+                &self.activation,
             );
 
             // 4. Accumulation
@@ -263,7 +291,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
     fn load_params(&mut self, file_path: &str) {
         let path = Path::new(file_path);
         let file = File::open(path).unwrap();
-        let content = io::read_to_string(file).unwrap();
+        let content = read_to_string(file).unwrap();
         let (architecture, weights, biases) = parse_params(content);
         self.architecture = architecture;
         self.weights = weights;

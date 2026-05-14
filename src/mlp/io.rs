@@ -1,7 +1,5 @@
 use crate::linear_algebra::matrix::*;
 
-use super::multilayer_perceptron::MultiLayerPerceptron;
-
 pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) {
     let binding = input
         .replace("Architecture", "")
