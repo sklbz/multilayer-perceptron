@@ -50,13 +50,15 @@ impl MultiLayerPerceptron {
         let now = Local::now();
 
         let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
+        println!();
+        print!("Writing to {}...", filename);
 
         let json = serde_json::to_string_pretty(self).expect("Failed to serialize model");
 
         let mut file = File::create(&filename)?;
 
         file.write_all(json.as_bytes())?;
-
+        print!("\rWriten to {}       ", filename);
         Ok(filename)
     }
 
