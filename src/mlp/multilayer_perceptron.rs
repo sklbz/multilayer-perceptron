@@ -1,3 +1,4 @@
+use super::activation::rectified_linear::RELU;
 use super::backpropagation::*;
 use super::io::parse_params;
 use super::partial_gradient::weight_partial;
@@ -19,6 +20,28 @@ pub struct MultiLayerPerceptron {
     architecture: Vector<usize>,
     weights: Tensor<f64>,
     biases: Matrix<f64>,
+}
+
+impl MultiLayerPerceptron {
+    pub fn zeroed(architecture: Vector<usize>) -> Self {
+        let (rows, columns): (Vector<usize>, Vector<usize>) = into_layer(&architecture);
+
+        // Matrices de poids remplies de 0
+        let weights: Tensor<f64> = rows
+            .iter()
+            .zip(columns.iter())
+            .map(|(r, c)| vec![vec![0.0; *c]; *r])
+            .collect();
+
+        // Bias remplis de 0
+        let biases: Matrix<f64> = rows.iter().map(|r| vec![0.0; *r]).collect();
+
+        Self {
+            architecture,
+            weights,
+            biases,
+        }
+    }
 }
 
 pub trait NeuralNetwork {
@@ -71,7 +94,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             .iter()
             .zip(self.biases.iter())
             .for_each(|(matrix, bias)| {
-                result = matrix.mul(&result).add(bias);
+                result = RELU(matrix.mul(&result).add(bias));
             });
 
         result.to_vec()
