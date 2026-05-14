@@ -5,6 +5,7 @@ pub mod calc;
 pub mod io;
 pub mod multilayer_perceptron;
 pub mod partial_gradient;
+pub mod tensor_ops;
 #[cfg(test)]
 pub mod test_performance;
 #[cfg(test)]
