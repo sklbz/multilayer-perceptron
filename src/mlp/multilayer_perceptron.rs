@@ -26,6 +26,11 @@ pub struct MultiLayerPerceptron {
     activation: Activation,
 }
 
+pub trait Save {
+    fn save(&self) -> std::io::Result<String>;
+    fn load(filename: &str) -> Self;
+}
+
 impl MultiLayerPerceptron {
     pub fn zeroed(architecture: Vector<usize>) -> Self {
         let (rows, columns) = into_layer(&architecture);
@@ -45,8 +50,9 @@ impl MultiLayerPerceptron {
             activation: Activation::RELU,
         }
     }
-
-    pub fn save(&self) -> std::io::Result<String> {
+}
+impl Save for MultiLayerPerceptron {
+    fn save(&self) -> std::io::Result<String> {
         let now = Local::now();
 
         let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
@@ -62,7 +68,7 @@ impl MultiLayerPerceptron {
         Ok(filename)
     }
 
-    pub fn load(filename: &str) -> Self {
+    fn load(filename: &str) -> Self {
         let file = File::open(filename).expect("Failed to open model file");
 
         let reader = BufReader::new(file);

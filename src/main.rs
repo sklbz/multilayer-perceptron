@@ -6,6 +6,7 @@ mod test;
 
 fn main() {
     let mlp = MultiLayerPerceptron::new(vec![1, 8, 8, 1]);
+    mlp.save();
 
     let samples = 200;
 
