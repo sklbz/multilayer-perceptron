@@ -2,6 +2,7 @@ use super::activation_function::Function;
 use super::backpropagation::backprop;
 use super::io::parse_params;
 use super::utils::*;
+use rayon::iter::ParallelIterator;
 
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
@@ -16,6 +17,7 @@ use std::path::Path;
 
 use chrono::Local;
 
+use rayon::iter::IntoParallelRefIterator;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -193,52 +195,58 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let n = database.len();
         let mut acc_error = 0.0;
 
-        // Accumulateurs (même shape que weights/biases)
-        let mut acc_weights: Tensor<f64> = self
-            .weights
-            .iter()
-            .map(|w| vec![vec![0.0; w[0].len()]; w.len()])
-            .collect();
-        let mut acc_biases: Matrix<f64> = self.biases.iter().map(|b| vec![0.0; b.len()]).collect();
+        let (acc_weights, acc_biases, acc_error) = database
+            .par_iter()
+            .map(|(input, target, coefficient)| {
+                let pass = self.forward_pass(input.clone());
 
-        for (input, target, coefficient) in &database {
-            // 1. Forward pass : collecte z_l et x_{l-1}
-            let pass = self.forward_pass(input.clone());
+                let x_final = self
+                    .activation
+                    .apply(pass.pre_activations[pass.pre_activations.len() - 1].clone());
+                let error = square_error(&x_final, target) * coefficient;
+                let error_grad: Vector<f64> = x_final
+                    .iter()
+                    .zip(target.iter())
+                    .map(|(o, t)| 2.0 * (o - t) * coefficient)
+                    .collect();
 
-            // 2. Gradient de l'erreur par rapport à la sortie finale
-            //    ∂C/∂x_L = 2 * (x_L - target) * coefficient
-            let x_final = self
-                .activation
-                .apply(pass.pre_activations[pass.pre_activations.len() - 1].clone());
-            acc_error += square_error(&x_final, target) * coefficient;
-            let error_grad: Vector<f64> = x_final
-                .iter()
-                .zip(target.iter())
-                .map(|(o, t)| 2.0 * (o - t) * coefficient)
-                .collect();
+                let grad = backprop(
+                    &self.weights,
+                    &pass.pre_activations,
+                    &pass.inputs,
+                    error_grad,
+                    &self.activation,
+                );
 
-            // 3. Backprop pour cet exemple
-            let grad = backprop(
-                &self.weights,
-                &pass.pre_activations,
-                &pass.inputs,
-                error_grad,
-                &self.activation,
-            );
-
-            // 4. Accumulation
-            for l in 0..self.weights.len() {
-                for k in 0..acc_weights[l].len() {
-                    for j in 0..acc_weights[l][k].len() {
-                        acc_weights[l][k][j] += grad.weights[l][k][j];
+                // Retourne les accumulateurs locaux à cet exemple
+                (grad.weights, grad.biases, error)
+            })
+            .reduce(
+                // Valeur neutre : accumulateurs à zéro
+                || {
+                    let w = self
+                        .weights
+                        .iter()
+                        .map(|w| vec![vec![0.0; w[0].len()]; w.len()])
+                        .collect();
+                    let b = self.biases.iter().map(|b| vec![0.0; b.len()]).collect();
+                    (w, b, 0.0)
+                },
+                // Addition de deux accumulateurs
+                |(mut w1, mut b1, e1), (w2, b2, e2)| {
+                    for l in 0..w1.len() {
+                        for k in 0..w1[l].len() {
+                            for j in 0..w1[l][k].len() {
+                                w1[l][k][j] += w2[l][k][j];
+                            }
+                        }
+                        for k in 0..b1[l].len() {
+                            b1[l][k] += b2[l][k];
+                        }
                     }
-                }
-                for k in 0..acc_biases[l].len() {
-                    acc_biases[l][k] += grad.biases[l][k];
-                }
-            }
-        }
-
+                    (w1, b1, e1 + e2)
+                },
+            );
         // 5. Moyenne sur le dataset
         let inv_n = 1.0 / n as f64;
         let mean_weights: Tensor<f64> = acc_weights
