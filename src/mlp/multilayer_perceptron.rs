@@ -163,6 +163,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64) {
+        let mut adam = AdamState::new(&self.weights, &self.biases);
         let size = min(iterations, 80);
         let min_err = f64::INFINITY;
         for i in 0..iterations {
@@ -184,10 +185,17 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 return;
             }
 
-            // Mise à jour : W_l -= lr * (1/n) * Σ ∂C/∂W_l
-            // Les gradients dans `grad` sont déjà moyennés sur le dataset
-            self.weights = self.weights.sub(&grad.weights.mul(&learning_rate));
-            self.biases = self.biases.sub(&grad.biases.mul(&learning_rate));
+            let (dw, db) = adam_update(
+                &mut adam,
+                &grad.weights,
+                &grad.biases,
+                learning_rate,
+                0.9,
+                0.999,
+                1e-8,
+            );
+            self.weights = self.weights.sub(&dw);
+            self.biases = self.biases.sub(&db);
         }
         print!("\r");
     }
