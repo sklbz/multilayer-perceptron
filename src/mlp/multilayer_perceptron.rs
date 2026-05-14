@@ -9,6 +9,7 @@ use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 use crate::mlp::activation_function::Activation;
 
+use std::cmp::min;
 use std::fs::File;
 use std::io::{BufReader, Write, read_to_string};
 use std::path::Path;
@@ -158,7 +159,15 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn backpropagation(&mut self, database: Database, iterations: usize, learning_rate: f64) {
-        for _ in 0..iterations {
+        let size = min(iterations, 100);
+        for i in 0..iterations {
+            let progress: usize = ((i * size) as f64 / (iterations as f64)) as usize;
+            print!("\r");
+            print!(
+                "[{0}{1}] {i}/{iterations} iterations",
+                "#".repeat(progress),
+                " ".repeat(size - progress)
+            );
             let error = self.error_function(database.clone());
 
             if error == 0.0 {
@@ -172,6 +181,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             self.weights = self.weights.sub(&grad.weights.mul(&learning_rate));
             self.biases = self.biases.sub(&grad.biases.mul(&learning_rate));
         }
+        println!();
     }
 
     fn gradient(&self, database: Database) -> NeuralNetGradient {
