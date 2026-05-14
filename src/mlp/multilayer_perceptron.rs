@@ -26,11 +26,6 @@ pub struct MultiLayerPerceptron {
     activation: Activation,
 }
 
-pub trait Save {
-    fn save(&self) -> std::io::Result<String>;
-    fn load(filename: &str) -> Self;
-}
-
 impl MultiLayerPerceptron {
     pub fn zeroed(architecture: Vector<usize>) -> Self {
         let (rows, columns) = into_layer(&architecture);
@@ -49,31 +44,6 @@ impl MultiLayerPerceptron {
             biases,
             activation: Activation::RELU,
         }
-    }
-}
-impl Save for MultiLayerPerceptron {
-    fn save(&self) -> std::io::Result<String> {
-        let now = Local::now();
-
-        let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
-        println!();
-        print!("Writing to {}...", filename);
-
-        let json = serde_json::to_string_pretty(self).expect("Failed to serialize model");
-
-        let mut file = File::create(&filename)?;
-
-        file.write_all(json.as_bytes())?;
-        print!("\rWriten to {}       ", filename);
-        Ok(filename)
-    }
-
-    fn load(filename: &str) -> Self {
-        let file = File::open(filename).expect("Failed to open model file");
-
-        let reader = BufReader::new(file);
-
-        serde_json::from_reader(reader).expect("Failed to deserialize model")
     }
 }
 
@@ -99,10 +69,12 @@ pub trait NeuralNetwork {
 
     fn inner_gradients(&self, database: Database) -> (NeuralNetGradient, usize);
 
+    fn load(filename: &str) -> Self;
+    fn save(&self) -> std::io::Result<String>;
+
     fn display(&self);
 
     fn params(&self) -> String;
-
     fn load_params(&mut self, file_path: &str);
 }
 
@@ -133,6 +105,30 @@ impl NeuralNetwork for MultiLayerPerceptron {
         }
 
         x
+    }
+
+    fn save(&self) -> std::io::Result<String> {
+        let now = Local::now();
+
+        let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
+        println!();
+        print!("Writing to {}...", filename);
+
+        let json = serde_json::to_string_pretty(self).expect("Failed to serialize model");
+
+        let mut file = File::create(&filename)?;
+
+        file.write_all(json.as_bytes())?;
+        print!("\rWriten to {}       ", filename);
+        Ok(filename)
+    }
+
+    fn load(filename: &str) -> Self {
+        let file = File::open(filename).expect("Failed to open model file");
+
+        let reader = BufReader::new(file);
+
+        serde_json::from_reader(reader).expect("Failed to deserialize model")
     }
 
     fn forward_pass(&self, input: Vector<f64>) -> ForwardPass {
