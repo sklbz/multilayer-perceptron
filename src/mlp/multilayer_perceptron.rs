@@ -163,21 +163,21 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64) {
-        let size = min(iterations, 100);
+        let size = min(iterations, 80);
         let min_err = f64::INFINITY;
         for i in 0..iterations {
             let progress: usize = ((i * size + 1) as f64 / (iterations as f64)) as usize;
             print!(
                 "\r[{0}{1}] {2}/{iterations} ",
                 "#".repeat(progress),
-                " ".repeat(size - progress),
+                " ".repeat(size - progress - 1),
                 i + 1,
             );
 
             let (grad, _n, error) = self.inner_gradients(database);
             let min_err = min_err.min(error);
 
-            print!("err: {:.5e}, min err: {:.5e}", error, min_err);
+            print!("err: {:.3e}, min: {:.3e}", error, min_err);
             stdout().flush().unwrap();
 
             if error <= 0.1 {
