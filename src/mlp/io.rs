@@ -54,6 +54,7 @@ pub fn parse_params(input: String) -> (Vector<usize>, Tensor<f64>, Matrix<f64>) 
     (architecture, weights, biases)
 }
 
+/*
 pub trait Save {
     fn save(&self, path: String);
     fn load(path: String) -> Self;
@@ -85,4 +86,4 @@ impl Save for MultiLayerPerceptron {
 
         decode_from_std_read(&mut reader, config).unwrap()
     }
-}
+}*/
