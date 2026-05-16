@@ -13,7 +13,7 @@ fn main() {
     for i in 0..samples {
         let x = (500 * i) as f64 / (samples - 1) as f64;
 
-        let y = mlp.calc(vec![x])[0];
+        let y = mlp.calc(&[x])[0];
 
         println!("{},{}", x, y);
     }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
@@ -56,17 +58,31 @@ impl Mean for Vector<f64> {
 }
 
 // ------------------------------------------------------------------------------------
+/// Transpose une Matrix<f64> : [N][k] → [k][N]
+pub fn transpose(m: &Matrix<f64>) -> Matrix<f64> {
+    if m.is_empty() {
+        return vec![];
+    }
+    let rows = m.len();
+    let cols = m[0].len();
+    (0..cols)
+        .map(|j| (0..rows).map(|i| m[i][j]).collect())
+        .collect()
+}
+// ------------------------------------------------------------------------------------
 
-pub type Database = Vec<(Vector<f64>, Vector<f64>, f64)>;
+pub fn shared(v: Vec<f64>) -> SharedVector {
+    Arc::from(v)
+}
 
-/// Résultat du forward pass pour un exemple donné.
-/// Contient tout ce dont la backprop a besoin.
+pub type SharedVector = Arc<[f64]>;
+
+pub type Database = Vec<(SharedVector, SharedVector, f64)>;
+
+/// Résultat du forward pass pour un batch donné.
 pub struct ForwardPass {
-    /// x_{l-1} : activation en entrée de chaque couche (= sortie après f de la couche précédente)
-    /// pre_activations[l] = z_l = W_l * x_{l-1} + b_l
-    pub inputs: Matrix<f64>,
-    /// z_l : pré-activation de chaque couche (avant application de f)
-    pub pre_activations: Matrix<f64>,
+    pub inputs: Vec<Matrix<f64>>,          // [L][j, N]
+    pub pre_activations: Vec<Matrix<f64>>, // [L][k, N]
 }
 
 pub struct StepwiseGradients {
@@ -95,12 +111,10 @@ impl<T> Extend<T> for Vec<T> {
 
 // ------------------------------------------------------------------------------------
 
-pub(crate) type Gradient<T> = T;
+pub type Gradient<T> = T;
 
 /// Gradient complet du réseau, couche par couche.
-pub(crate) struct NeuralNetGradient {
-    /// δ_l : gradient d'erreur par rapport aux pré-activations de chaque couche
-    pub deltas: Gradient<Matrix<f64>>,
+pub struct NeuralNetGradient {
     /// ∂C/∂W_l pour chaque couche
     pub weights: Gradient<Tensor<f64>>,
     /// ∂C/∂b_l = δ_l pour chaque couche

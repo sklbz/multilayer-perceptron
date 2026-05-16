@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mlp::multilayer_perceptron::{MultiLayerPerceptron, NeuralNetwork};
-    use crate::mlp::utils::Database;
+    use crate::mlp::utils::{Database, SharedVector, shared};
 
     // -----------------------------------------------------------------------
     // Dataset
@@ -13,8 +13,8 @@ mod tests {
         (0..n)
             .map(|i| {
                 let x = min + (max - min) * (i as f64) / (n as f64 - 1.0);
-                let input = vec![x / max];
-                let target = vec![x.tanh()];
+                let input: SharedVector = shared(vec![x / max]);
+                let target: SharedVector = shared(vec![x.tanh()]);
                 let coefficient = 1.0 / n as f64;
                 (input, target, coefficient)
             })
@@ -32,7 +32,7 @@ mod tests {
         );
         println!("{}", "-".repeat(46));
         for (input, target, _) in dataset {
-            let predicted = net.calc(input.clone());
+            let predicted = net.calc(input);
             let x_real = input[0] * scale;
             let err = (predicted[0] - target[0]).abs();
             println!(
@@ -77,7 +77,7 @@ mod tests {
 
         net.backpropagation(&dataset, 5_000, 0.05);
 
-        let predicted = net.calc(vec![0.0]);
+        let predicted = net.calc(&[0.0]);
         println!("\ntanh(0) prédit : {:.6}  (attendu ≈ 0.0)", predicted[0]);
 
         assert!(
@@ -100,8 +100,8 @@ mod tests {
 
         let scale = 3.0_f64;
         for x in [0.5_f64, 1.0, 1.5, 2.0] {
-            let pos = net.calc(vec![x / scale])[0];
-            let neg = net.calc(vec![-x / scale])[0];
+            let pos = net.calc(&[x / scale])[0];
+            let neg = net.calc(&[-x / scale])[0];
             let somme = (pos + neg).abs();
 
             println!(
@@ -146,7 +146,7 @@ mod tests {
         );
         println!("{}", "-".repeat(46));
         for x in [-2.5_f64, -1.7, -0.6, 0.3, 1.2, 2.1] {
-            let predicted = net.calc(vec![x / scale])[0];
+            let predicted = net.calc(&[x / scale])[0];
             let expected = x.tanh();
             println!(
                 "{:<10.4} {:<12.6} {:<12.6} {:<10.6}",
