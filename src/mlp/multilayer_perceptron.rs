@@ -1,14 +1,14 @@
 use super::activation_function::Function;
-use super::backpropagation::backprop;
 use super::io::parse_params;
 use super::utils::*;
-use rayon::iter::ParallelIterator;
 
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 use crate::mlp::activation_function::Activation;
+use crate::mlp::backpropagation::backprop_batch;
+use crate::mlp::tensor_ops::matmul;
 
 use core::f64;
 use std::cmp::min;
@@ -18,7 +18,6 @@ use std::path::Path;
 
 use chrono::Local;
 
-use rayon::iter::IntoParallelRefIterator;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -55,13 +54,13 @@ pub trait NeuralNetwork {
     fn new(architecture: Vector<usize>) -> Self;
 
     /// Forward pass : retourne uniquement la sortie finale f(z_L).
-    fn calc(&self, input: Vector<f64>) -> Vector<f64>;
+    fn calc(&self, input: &[f64]) -> Vector<f64>;
 
     /// Forward pass complet : retourne (inputs, pre_activations) pour chaque couche.
     ///
     /// - `inputs[l]`        = x_{l-1} : activation en entrée de la couche l
     /// - `pre_activations[l]` = z_l    : W_l * x_{l-1} + b_l, avant application de f
-    fn forward_pass(&self, input: Vector<f64>) -> ForwardPass;
+    fn forward_pass(&self, input_batch: &Matrix<f64>) -> ForwardPass;
 
     fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64);
 
@@ -101,8 +100,8 @@ impl NeuralNetwork for MultiLayerPerceptron {
         }
     }
 
-    fn calc(&self, input: Vector<f64>) -> Vector<f64> {
-        let mut x = input;
+    fn calc(&self, input: &[f64]) -> Vector<f64> {
+        let mut x = input.to_vec();
 
         for (w, b) in self.weights.iter().zip(self.biases.iter()) {
             let z = w.mul(&x).add(b);
@@ -116,7 +115,6 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let now = Local::now();
 
         let filename = format!("{}.model.json", now.format("%Y-%m-%d_%H-%M-%S"));
-        println!();
         print!("Writing to {}...", filename);
 
         let json = serde_json::to_string_pretty(self).expect("Failed to serialize model");
@@ -124,7 +122,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let mut file = File::create(&filename)?;
 
         file.write_all(json.as_bytes())?;
-        print!("\rWriten to {}       ", filename);
+        print!("\rWriten to {}  ", filename);
         Ok(filename)
     }
 
@@ -136,24 +134,32 @@ impl NeuralNetwork for MultiLayerPerceptron {
         serde_json::from_reader(reader).expect("Failed to deserialize model")
     }
 
-    fn forward_pass(&self, input: Vector<f64>) -> ForwardPass {
+    fn forward_pass(&self, inputs_batch: &Matrix<f64>) -> ForwardPass {
         let depth = self.weights.len();
+        let mut inputs: Vec<Matrix<f64>> = Vec::with_capacity(depth);
+        let mut pre_activations: Vec<Matrix<f64>> = Vec::with_capacity(depth);
 
-        let mut inputs: Matrix<f64> = Vec::with_capacity(depth);
-        let mut pre_activations: Matrix<f64> = Vec::with_capacity(depth);
-
-        let mut x = input;
+        let mut x = inputs_batch.clone(); // [j, N]
 
         for (w, b) in self.weights.iter().zip(self.biases.iter()) {
             // x_{l-1} : entrée de cette couche
             inputs.push(x.clone());
 
-            // z_l = W_l * x_{l-1} + b_l
-            let z = w.mul(&x).add(b);
+            // z_l = W_l · X + b_l  — b est broadcasté sur les N colonnes
+            let mut z = matmul(w, &x); // [k, N]
+            for col in z.iter_mut() {
+                for (val, bias) in col.iter_mut().zip(b.iter()) {
+                    *val += bias;
+                }
+            }
+
             pre_activations.push(z.clone());
 
-            // x_l = f(z_l)
-            x = self.activation.apply(z);
+            // x_l = f(z_l) appliqué élément par élément
+            x = z
+                .iter()
+                .map(|col| self.activation.apply(col.clone()))
+                .collect();
         }
 
         ForwardPass {
@@ -164,8 +170,9 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
     fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64) {
         let mut adam = AdamState::new(&self.weights, &self.biases);
-        let size = min(iterations, 80);
-        let min_err = f64::INFINITY;
+        let size = min(iterations, 75);
+        let mut min_err = f64::INFINITY;
+        let mut initial_err: Option<f64> = None;
         for i in 0..iterations {
             let progress: usize = ((i * size + 1) as f64 / (iterations as f64)) as usize;
             print!(
@@ -176,9 +183,18 @@ impl NeuralNetwork for MultiLayerPerceptron {
             );
 
             let (grad, _n, error) = self.inner_gradients(database);
-            let min_err = min_err.min(error);
+            if min_err > error {
+                min_err = min_err.min(error);
+            }
 
-            print!("err: {:.3e}, min: {:.3e}", error, min_err);
+            if initial_err.is_none() {
+                initial_err = Some(error);
+            }
+
+            print!("err: {:.2e}, min: {:.2e} ", error, min_err);
+            if let Some(initial) = initial_err {
+                print!("initial: {:.2e}", initial)
+            };
             stdout().flush().unwrap();
 
             if error <= 0.1 {
@@ -209,78 +225,70 @@ impl NeuralNetwork for MultiLayerPerceptron {
     fn inner_gradients(&self, database: &Database) -> (NeuralNetGradient, usize, f64) {
         let n = database.len();
 
-        let (acc_weights, acc_biases, acc_error) = database
-            .par_iter()
-            .map(|(input, target, coefficient)| {
-                let pass = self.forward_pass(input.clone());
+        // 1. Construire la matrice d'entrée X : shape [n_features, N]
+        //    et la matrice de cibles T : shape [n_outputs, N]
+        let inputs_batch: Matrix<f64> = transpose(
+            &database
+                .iter()
+                .map(|(x, _, _)| x.as_ref().to_vec())
+                .collect(),
+        ); // [768, N]
 
-                let x_final = self
-                    .activation
-                    .apply(pass.pre_activations[pass.pre_activations.len() - 1].clone());
-                let error = square_error(&x_final, target) * coefficient;
-                let error_grad: Vector<f64> = x_final
-                    .iter()
-                    .zip(target.iter())
-                    .map(|(o, t)| 2.0 * (o - t) * coefficient)
-                    .collect();
+        let targets_batch: Matrix<f64> = transpose(
+            &database
+                .iter()
+                .map(|(_, t, _)| t.as_ref().to_vec())
+                .collect(),
+        ); // [n_outputs, N]
 
-                let grad = backprop(
-                    &self.weights,
-                    &pass.pre_activations,
-                    &pass.inputs,
-                    error_grad,
-                    &self.activation,
-                );
+        let coefficients: Vector<f64> = database.iter().map(|(_, _, c)| *c).collect();
 
-                // Retourne les accumulateurs locaux à cet exemple
-                (grad.weights, grad.biases, error)
-            })
-            .reduce(
-                // Valeur neutre : accumulateurs à zéro
-                || {
-                    let w = self
-                        .weights
-                        .iter()
-                        .map(|w| vec![vec![0.0; w[0].len()]; w.len()])
-                        .collect();
-                    let b = self.biases.iter().map(|b| vec![0.0; b.len()]).collect();
-                    (w, b, 0.0)
-                },
-                // Addition de deux accumulateurs
-                |(mut w1, mut b1, e1), (w2, b2, e2)| {
-                    for l in 0..w1.len() {
-                        for k in 0..w1[l].len() {
-                            for j in 0..w1[l][k].len() {
-                                w1[l][k][j] += w2[l][k][j];
-                            }
-                        }
-                        for k in 0..b1[l].len() {
-                            b1[l][k] += b2[l][k];
-                        }
-                    }
-                    (w1, b1, e1 + e2)
-                },
-            );
-        // 5. Moyenne sur le dataset
-        let inv_n = 1.0 / n as f64;
-        let mean_weights: Tensor<f64> = acc_weights
+        // 2. Forward pass batché — un seul appel GPU
+        let pass = self.forward_pass(&inputs_batch);
+
+        // 3. Sortie finale x_L : shape [n_outputs, N]
+        let last_pre_act = pass.pre_activations.last().unwrap();
+        let x_final: Matrix<f64> = last_pre_act
             .iter()
-            .map(|w| {
-                w.iter()
-                    .map(|row| row.iter().map(|v| v * inv_n).collect())
+            .map(|col| self.activation.apply(col.clone()))
+            .collect();
+
+        // 4. Erreur scalaire : Σ coefficient_i * ||x_L_i - t_i||²
+        let acc_error: f64 = (0..n)
+            .map(|i| {
+                let col: Vector<f64> = x_final.iter().map(|row| row[i]).collect();
+                let target: Vector<f64> = targets_batch.iter().map(|row| row[i]).collect();
+                square_error(&col, &target) * coefficients[i]
+            })
+            .sum();
+
+        // 5. Gradient de l'erreur : shape [n_outputs, N]
+        //    ∂C/∂x_L[:, i] = 2 * (x_L[:, i] - t[:, i]) * coefficient_i
+        let error_grad_batch: Matrix<f64> = x_final
+            .iter()
+            .zip(targets_batch.iter())
+            .map(|(out_row, tgt_row)| {
+                out_row
+                    .iter()
+                    .zip(tgt_row.iter())
+                    .zip(coefficients.iter())
+                    .map(|((o, t), c)| 2.0 * (o - t) * c)
                     .collect()
             })
             .collect();
-        let mean_biases: Matrix<f64> = acc_biases
-            .iter()
-            .map(|b| b.iter().map(|v| v * inv_n).collect())
-            .collect();
+
+        let grad = backprop_batch(
+            &self.weights,
+            &pass.pre_activations,
+            &pass.inputs,
+            error_grad_batch,
+            &self.activation,
+        );
 
         (
             NeuralNetGradient {
-                deltas: vec![], // non exposé à l'extérieur
-                weights: mean_weights,
-                biases: mean_biases,
+                weights: grad.weights,
+                biases: grad.biases,
             },
             n,
             acc_error,
@@ -291,7 +299,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         database
             .iter()
             .map(|(input, target, coefficient)| {
-                square_error(&self.calc(input.clone()), target) * coefficient
+                square_error(&self.calc(input), target) * coefficient
             })
             .sum()
     }
@@ -303,7 +311,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let mut sum = vec![0.0; self.architecture[self.architecture.len() - 1]];
 
         for (input, target, coefficient) in database {
-            let output = self.calc(input.clone());
+            let output = self.calc(input);
             for k in 0..sum.len() {
                 sum[k] += 2.0 * (output[k] - target[k]) * coefficient;
             }

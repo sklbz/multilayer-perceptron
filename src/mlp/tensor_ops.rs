@@ -56,3 +56,31 @@ pub fn outer(delta: &Vector<f64>, x: &Vector<f64>) -> Matrix<f64> {
     let result = d_t.matmul(&x_t).unwrap(); // [k, j]
     tensor_to_mat(&result)
 }
+/// W · X  (forward pass batché)
+/// W : [k, j], X : [j, N] → résultat : [k, N]
+pub fn matmul(w: &Matrix<f64>, x: &Matrix<f64>) -> Matrix<f64> {
+    let w_t = mat_to_tensor(w);
+    let x_t = mat_to_tensor(x);
+    let result = w_t.matmul(&x_t).unwrap();
+    tensor_to_mat(&result)
+}
+
+/// Wᵀ · D  (backprop batché — propagation du gradient)
+/// W : [k, j], D : [k, N] → résultat : [j, N]
+pub fn matmul_t(w: &Matrix<f64>, delta: &Matrix<f64>) -> Matrix<f64> {
+    let w_t = mat_to_tensor(w).t().unwrap();
+    let d_t = mat_to_tensor(delta);
+    let result = w_t.matmul(&d_t).unwrap();
+    tensor_to_mat(&result)
+}
+
+/// D · Xᵀ  (backprop batché — gradient des poids, moyenné sur le batch)
+/// D : [k, N], X : [j, N] → résultat : [k, j]
+pub fn outer_batch(delta: &Matrix<f64>, x: &Matrix<f64>) -> Matrix<f64> {
+    let n = delta[0].len() as f64;
+    let d_t = mat_to_tensor(delta); // [k, N]
+    let x_t = mat_to_tensor(x).t().unwrap(); // [N, j]
+    let result = d_t.matmul(&x_t).unwrap(); // [k, j]
+    // Moyenne sur le batch
+    tensor_to_mat(&result.affine(1.0 / n, 0.0).unwrap())
+}

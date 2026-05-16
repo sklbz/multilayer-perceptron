@@ -1,13 +1,13 @@
 use crate::mlp::multilayer_perceptron::{MultiLayerPerceptron, NeuralNetwork};
-use crate::mlp::utils::Database;
+use crate::mlp::utils::{Database, SharedVector, shared};
 use std::time::Instant;
 
-fn dummy_database(n: usize, input_size: usize) -> Database {
+fn dummy_database(n: usize, input_size: usize, output_size: usize) -> Database {
     (0..n)
         .map(|i| {
             let x = i as f64 / n as f64;
-            let input = vec![x; input_size];
-            let target = vec![x.tanh()];
+            let input: SharedVector = shared(vec![x; input_size]);
+            let target: SharedVector = shared(vec![x.tanh(); output_size]);
             let coefficient = 1.0 / n as f64;
             (input, target, coefficient)
         })
@@ -16,7 +16,7 @@ fn dummy_database(n: usize, input_size: usize) -> Database {
 
 fn bench_architecture(layers: Vec<usize>, iterations: usize, db_size: usize) {
     let label = format!("{:?}", layers);
-    let db = dummy_database(db_size, *layers.first().unwrap());
+    let db = dummy_database(db_size, *layers.first().unwrap(), *layers.last().unwrap());
     let mut net = MultiLayerPerceptron::new(layers);
 
     let start = Instant::now();
@@ -48,4 +48,5 @@ fn test_bench_training_time() {
     bench_architecture(vec![1024, 1536, 1], iterations, db_size);
     bench_architecture(vec![1024, 1792, 1], iterations, db_size);
     bench_architecture(vec![1536, 1792, 1], iterations, db_size);
+    bench_architecture(vec![768, 1024, 1539, 1792], iterations, 128);
 }
