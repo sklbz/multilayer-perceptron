@@ -1,10 +1,11 @@
 use super::utils::*;
-use crate::linear_algebra::matrix::*;
+use crate::linear_algebra::matrix::Matrix;
+use crate::linear_algebra::matrix::Vector;
 use crate::mlp::activation_function::Activation;
 use crate::mlp::activation_function::Function;
-use crate::mlp::tensor_ops::{matvec_t, outer};
-
-use crate::mlp::tensor_ops::{matmul_t, outer_batch};
+use crate::mlp::tensor_ops::row_means_tensor;
+use crate::mlp::tensor_ops::tensor_to_vec_pub;
+use candle_core::Tensor;
 
 /// Version batché de backprop.
 ///
@@ -15,63 +16,66 @@ use crate::mlp::tensor_ops::{matmul_t, outer_batch};
 /// - `error_grad_batch`  : ∂C/∂x_L, shape [n_outputs][N]
 /// - `activation`        : fonction d'activation
 pub(super) fn backprop_batch(
-    weights: &Tensor<f64>,
+    weights: &[Matrix<f64>], // types inchangés côté appelant
     pre_acts: &[Matrix<f64>],
     inputs: &[Matrix<f64>],
-    error_grad_batch: Matrix<f64>,
+    error_grad_batch: &Matrix<f64>,
     activation: &Activation,
 ) -> NeuralNetGradient {
+    use crate::mlp::tensor_ops::{
+        mat_to_tensor_pub as upload, matmul_t_native, outer_batch_native,
+        tensor_to_mat_pub as download,
+    };
+
     let depth = weights.len();
+    let n = error_grad_batch[0].len() as f64;
 
-    // δ_L = ∇_a(C) ⊙ f'(z_L)  — shape [k, N]
-    let f_prime_last: Matrix<f64> = pre_acts[depth - 1]
-        .iter()
-        .map(|col| activation.gradient(col.clone()))
-        .collect();
-    let delta_last: Matrix<f64> = hadamard_batch(&error_grad_batch, &f_prime_last);
+    // ── Upload unique ──────────────────────────────────────────────
+    // weights déjà en RAM : un upload par couche, fait une seule fois
+    let w_gpu: Vec<Tensor> = weights.iter().map(upload).collect();
+    let inputs_gpu: Vec<Tensor> = inputs.iter().map(upload).collect();
+    let pre_acts_gpu: Vec<Tensor> = pre_acts.iter().map(upload).collect();
+    let err_gpu = upload(error_grad_batch);
 
-    // ∂C/∂W_L = δ_L · x_{L-1}ᵀ  moyenné sur N — shape [k, j]
-    let mut weight_grads: Tensor<f64> = Vec::with_capacity(depth);
-    // ∂C/∂b_L = mean(δ_L, axis=N) — shape [k]
-    let mut bias_grads: Matrix<f64> = Vec::with_capacity(depth);
-    let mut deltas: Vec<Matrix<f64>> = Vec::with_capacity(depth);
+    // ── Couche L ───────────────────────────────────────────────────
+    let f_prime_last = activation.gradient_tensor(&pre_acts_gpu[depth - 1]);
+    let delta_last = (err_gpu * f_prime_last).unwrap(); // hadamard sur GPU
 
-    weight_grads.push(outer_batch(&delta_last, &inputs[depth - 1]));
-    bias_grads.push(row_means(&delta_last));
-    deltas.push(delta_last);
+    let mut weight_grads_gpu: Vec<Tensor> = Vec::with_capacity(depth);
+    let mut bias_grads_gpu: Vec<Tensor> = Vec::with_capacity(depth);
+    let mut deltas_gpu: Vec<Tensor> = Vec::with_capacity(depth);
 
-    // Rétropropagation de L-1 jusqu'à 0
+    weight_grads_gpu.push(outer_batch_native(&delta_last, &inputs_gpu[depth - 1], n));
+    bias_grads_gpu.push(row_means_tensor(&delta_last));
+    deltas_gpu.push(delta_last);
+
+    // ── Couches L-1 → 0, entièrement sur GPU ──────────────────────
     for l in (0..depth - 1).rev() {
-        let delta_next: &Vec<Vec<f64>> = deltas.last().unwrap();
+        let delta_next = deltas_gpu.last().unwrap();
+        let propagated = matmul_t_native(&w_gpu[l + 1], delta_next);
 
-        let w_next = &weights[l + 1];
+        let f_prime = activation.gradient_tensor(&pre_acts_gpu[l]);
+        let delta_l = (propagated * f_prime).unwrap();
 
-        // W_{l+1}ᵀ · δ_{l+1} — shape [j, N]
-        let propagated = matmul_t(w_next, delta_next);
-
-        // ⊙ f'(z_l) — shape [j, N]
-        let f_prime: Matrix<f64> = pre_acts[l]
-            .iter()
-            .map(|col| activation.gradient(col.clone()))
-            .collect();
-        let delta_l = hadamard_batch(&propagated, &f_prime);
-
-        // ∂C/∂W_l = δ_l · x_{l-1}ᵀ  moyenné sur N
-        weight_grads.push(outer_batch(&delta_l, &inputs[l]));
-        // ∂C/∂b_l = mean(δ_l, axis=N)
-        bias_grads.push(row_means(&delta_l));
-        deltas.push(delta_l);
+        weight_grads_gpu.push(outer_batch_native(&delta_l, &inputs_gpu[l], n));
+        bias_grads_gpu.push(row_means_tensor(&delta_l));
+        deltas_gpu.push(delta_l);
     }
-    weight_grads.reverse();
-    bias_grads.reverse();
 
+    weight_grads_gpu.reverse();
+    bias_grads_gpu.reverse();
+
+    // ── Download unique ────────────────────────────────────────────
     NeuralNetGradient {
-        weights: weight_grads,
-        biases: bias_grads,
+        weights: weight_grads_gpu.iter().map(download).collect(),
+        biases: bias_grads_gpu
+            .iter()
+            .map(|t| {
+                tensor_to_vec_pub(t) // row_means produit déjà [k]
+            })
+            .collect(),
     }
 }
-
-// ------------------------------------------------------------------------------------
 
 /// Hadamard batch : A ⊙ B, shape [k][N] ⊙ [k][N] → [k][N]
 fn hadamard_batch(a: &Matrix<f64>, b: &Matrix<f64>) -> Matrix<f64> {
@@ -97,64 +101,4 @@ fn hadamard(a: &Vector<f64>, b: &Vector<f64>) -> Vector<f64> {
         b.len()
     );
     a.iter().zip(b.iter()).map(|(x, y)| x * y).collect()
-}
-
-/// Point d'entrée de la backpropagation.
-///
-/// # Arguments
-/// - `weights`      : W_l pour chaque couche l, shape [L][k][j]
-/// - `pre_acts`     : z_l = W_l * x_{l-1} + b_l pour chaque couche l, shape [L][k]
-/// - `inputs`       : x_{l-1} = f(z_{l-1}) en entrée de chaque couche, shape [L][j]
-/// - `error_grad`   : ∇_a(C) = ∂C/∂x_L, gradient de l'erreur par rapport à la sortie finale
-/// - `activation`   : fonction d'activation (pour sa dérivée f')
-///
-/// # Retourne
-/// `NeuralNetGradient` contenant δ_l, ∂C/∂W_l et ∂C/∂b_l pour chaque couche.
-pub fn backprop(
-    weights: &Tensor<f64>,
-    pre_acts: &Matrix<f64>,
-    inputs: &Matrix<f64>,
-    error_grad: Vector<f64>,
-    activation: &Activation,
-) -> NeuralNetGradient {
-    let depth = weights.len(); // nombre de couches
-
-    // δ_L = ∇_a(C) ⊙ f'(z_L)
-    let f_prime_last = activation.gradient(pre_acts[depth - 1].clone());
-    let delta_last = hadamard(&error_grad, &f_prime_last);
-
-    // Initialisation avec la dernière couche
-    let mut deltas: Matrix<f64> = vec![delta_last.clone()];
-    let mut weight_grads: Tensor<f64> = vec![outer(&delta_last, &inputs[depth - 1])];
-    let mut bias_grads: Matrix<f64> = vec![delta_last];
-
-    // Rétropropagation couche par couche, de L-1 jusqu'à 0
-    for l in (0..depth - 1).rev() {
-        // δ_l = (W_{l+1}ᵀ · δ_{l+1}) ⊙ f'(z_l)
-        let delta_next = &deltas[0]; // deltas est en ordre inverse, [0] = couche l+1
-        let w_next = &weights[l + 1]; // W_{l+1}
-
-        // W_{l+1}ᵀ · δ_{l+1}
-        let propagated: Vector<f64> = matvec_t(w_next, delta_next);
-
-        // ⊙ f'(z_l)
-        let f_prime = activation.gradient(pre_acts[l].clone());
-        let delta_l = hadamard(&propagated, &f_prime);
-
-        // ∂C/∂W_l = δ_l · x_{l-1}ᵀ  (produit externe)
-        let weight_grad_l = outer(&delta_l, &inputs[l]);
-
-        // ∂C/∂b_l = δ_l
-        let bias_grad_l = delta_l.clone();
-
-        // Prepend pour garder l'ordre [couche 0, ..., couche L]
-        deltas = deltas.prepend(delta_l);
-        weight_grads = weight_grads.prepend(weight_grad_l);
-        bias_grads = bias_grads.prepend(bias_grad_l);
-    }
-
-    NeuralNetGradient {
-        weights: weight_grads,
-        biases: bias_grads,
-    }
 }

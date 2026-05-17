@@ -45,7 +45,7 @@ impl MultiLayerPerceptron {
             architecture,
             weights,
             biases,
-            activation: Activation::RELU,
+            activation: Activation::ReLU,
         }
     }
 }
@@ -96,7 +96,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             architecture,
             weights,
             biases,
-            activation: Activation::RELU,
+            activation: Activation::ReLU,
         }
     }
 
@@ -105,7 +105,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
 
         for (w, b) in self.weights.iter().zip(self.biases.iter()) {
             let z = w.mul(&x).add(b);
-            x = self.activation.apply(z);
+            x = self.activation.apply(&z);
         }
 
         x
@@ -139,27 +139,22 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let mut inputs: Vec<Matrix<f64>> = Vec::with_capacity(depth);
         let mut pre_activations: Vec<Matrix<f64>> = Vec::with_capacity(depth);
 
-        let mut x = inputs_batch.clone(); // [j, N]
+        let mut x = inputs_batch.clone();
 
         for (w, b) in self.weights.iter().zip(self.biases.iter()) {
-            // z_l = W_l · X + b_l  — b est broadcasté sur les N colonnes
-            let mut z = matmul(w, &x); // [k, N]
+            inputs.push(x.clone()); // inévitable : x encore utilisé par matmul
+
+            let mut z = matmul(w, &x);
             for col in z.iter_mut() {
                 for (val, bias) in col.iter_mut().zip(b.iter()) {
                     *val += bias;
                 }
             }
 
-            let x_next: Matrix<f64> = z
-                .iter()
-                .map(|col| self.activation.apply(col.clone()))
-                .collect();
-            pre_activations.push(z.clone());
+            // x_next produit depuis &z — z pas encore consommé
+            let x_next: Matrix<f64> = z.iter().map(|col| self.activation.apply(col)).collect();
 
-            // Move de x et z : plus aucun clone nécessaire
-            inputs.push(x);
-            pre_activations.push(z);
-
+            pre_activations.push(z); // move : z n'est plus utilisé après ce point
             x = x_next;
         }
 
@@ -251,7 +246,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let last_pre_act = pass.pre_activations.last().unwrap();
         let x_final: Matrix<f64> = last_pre_act
             .iter()
-            .map(|col| self.activation.apply(col.clone()))
+            .map(|col| self.activation.apply(col))
             .collect();
 
         // 4. Erreur scalaire : Σ coefficient_i * ||x_L_i - t_i||²
@@ -282,7 +277,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             &self.weights,
             &pass.pre_activations,
             &pass.inputs,
-            error_grad_batch,
+            &error_grad_batch,
             &self.activation,
         );
 

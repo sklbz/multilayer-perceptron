@@ -27,6 +27,14 @@ fn tensor_to_vec(t: &Tensor) -> Vector<f64> {
     t.to_dtype(DType::F64).unwrap().to_vec1().unwrap()
 }
 
+pub(crate) fn tensor_to_vec_pub(t: &Tensor) -> Vector<f64> {
+    tensor_to_vec(t)
+}
+
+pub(crate) fn row_means_tensor(m: &Tensor) -> Tensor {
+    m.mean(1).unwrap()
+}
+
 /// Tensor candle shape [rows, cols] → Matrix<f64>
 fn tensor_to_mat(t: &Tensor) -> Matrix<f64> {
     t.to_dtype(DType::F64).unwrap().to_vec2().unwrap()
@@ -85,4 +93,30 @@ pub fn outer_batch(delta: &Matrix<f64>, x: &Matrix<f64>) -> Matrix<f64> {
     let result = d_t.matmul(&x_t).unwrap(); // [k, j]
     // Moyenne sur le batch
     tensor_to_mat(&result.affine(1.0 / n, 0.0).unwrap())
+}
+
+/// W · X sans round-trip — entrée et sortie restent sur GPU
+pub(crate) fn matmul_native(w: &Tensor, x: &Tensor) -> Tensor {
+    w.matmul(x).unwrap()
+}
+
+/// Wᵀ · D sans round-trip
+pub(crate) fn matmul_t_native(w: &Tensor, x: &Tensor) -> Tensor {
+    w.t().unwrap().matmul(x).unwrap()
+}
+
+/// D · Xᵀ moyenné sur le batch, sans round-trip
+pub(crate) fn outer_batch_native(delta: &Tensor, x: &Tensor, n: f64) -> Tensor {
+    let x_t = x.t().unwrap();
+    delta.matmul(&x_t).unwrap().affine(1.0 / n, 0.0).unwrap()
+}
+
+/// Matrix<f64> → Tensor (upload unique en début de step)
+pub(crate) fn mat_to_tensor_pub(m: &Matrix<f64>) -> Tensor {
+    mat_to_tensor(m)
+}
+
+/// Tensor → Matrix<f64> (download unique en fin de step)
+pub(crate) fn tensor_to_mat_pub(t: &Tensor) -> Matrix<f64> {
+    tensor_to_mat(t)
 }
