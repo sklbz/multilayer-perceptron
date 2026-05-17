@@ -16,6 +16,7 @@ pub struct ActivationFunction {
 
 pub trait Function {
     fn apply(&self, input: &[f64]) -> Vector<f64>;
+    fn apply_tensor(&self, input: &Tensor) -> Tensor;
     fn gradient(&self, input: &[f64]) -> Vector<f64>;
     fn gradient_tensor(&self, pre_act: &Tensor) -> Tensor;
 }
@@ -27,7 +28,15 @@ impl Function for ActivationFunction {
             .map(|coord: &f64| (self.function)(*coord))
             .collect::<Vector<f64>>()
     }
-
+    fn apply_tensor(&self, input: &Tensor) -> Tensor {
+        let v: Vec<f64> = input
+            .to_dtype(DType::F64)
+            .unwrap()
+            .to_vec1::<f64>()
+            .unwrap();
+        let applied: Vec<f64> = v.iter().map(|x| (self.function)(*x)).collect();
+        Tensor::from_slice(&applied, input.shape(), input.device()).unwrap()
+    }
     fn gradient(&self, input: &[f64]) -> Vector<f64> {
         input
             .iter()
@@ -49,6 +58,16 @@ impl Function for Activation {
     fn apply(&self, input: &[f64]) -> Vector<f64> {
         match self {
             Activation::ReLU => RELU.apply(input),
+        }
+    }
+    fn apply_tensor(&self, input: &Tensor) -> Tensor {
+        match self {
+            Activation::ReLU => {
+                // leaky_relu(x) = relu(x) - 0.05 * relu(-x)
+                let pos = input.relu().unwrap();
+                let neg = (input.neg().unwrap().relu().unwrap() * 0.05f64).unwrap();
+                (pos - neg).unwrap()
+            }
         }
     }
     fn gradient(&self, input: &[f64]) -> Vector<f64> {

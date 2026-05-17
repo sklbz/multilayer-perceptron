@@ -7,8 +7,10 @@ use crate::linear_algebra::generator::Generator;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
 use crate::mlp::activation_function::Activation;
-use crate::mlp::backpropagation::backprop_batch;
+use crate::mlp::backpropagation::backprop_batch_gpu;
+use crate::mlp::tensor_ops::mat_to_tensor_pub as upload;
 use crate::mlp::tensor_ops::matmul;
+use crate::mlp::tensor_ops::tensor_to_mat_pub as download;
 
 use core::f64;
 use std::cmp::min;
@@ -62,15 +64,25 @@ pub trait NeuralNetwork {
     /// - `pre_activations[l]` = z_l    : W_l * x_{l-1} + b_l, avant application de f
     fn forward_pass(&self, input_batch: &Matrix<f64>) -> ForwardPass;
 
-    fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64);
+    fn forward_pass_gpu(
+        &self,
+        inputs_batch: &Matrix<f64>,
+        weights_gpu: &[candle_core::Tensor],
+        biases_gpu: &[candle_core::Tensor],
+    ) -> ForwardPassGpu;
 
-    fn gradient(&self, database: &Database) -> NeuralNetGradient;
+    fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64);
 
     fn error_function(&self, database: &Database) -> f64;
 
     fn error_gradient(&self, database: &Database) -> Vector<f64>;
 
-    fn inner_gradients(&self, database: &Database) -> (NeuralNetGradient, usize, f64);
+    fn inner_gradients(
+        &self,
+        weights_gpu: &[candle_core::Tensor],
+        biases_gpu: &[candle_core::Tensor],
+        database: &Database,
+    ) -> (NeuralNetGradient, usize, f64);
 
     fn load(filename: &str) -> Self;
     fn save(&self) -> std::io::Result<String>;
@@ -134,6 +146,40 @@ impl NeuralNetwork for MultiLayerPerceptron {
         serde_json::from_reader(reader).expect("Failed to deserialize model")
     }
 
+    /// Forward pass entièrement GPU.
+    /// `weights_gpu` et `biases_gpu` sont déjà sur GPU.
+    fn forward_pass_gpu(
+        &self,
+        inputs_batch: &Matrix<f64>,
+        weights_gpu: &[candle_core::Tensor],
+        biases_gpu: &[candle_core::Tensor],
+    ) -> ForwardPassGpu {
+        use crate::mlp::tensor_ops::{add_bias_native, mat_to_tensor_pub as upload, matmul_native};
+
+        let depth = weights_gpu.len();
+        let mut inputs_gpu: Vec<candle_core::Tensor> = Vec::with_capacity(depth);
+        let mut pre_acts_gpu: Vec<candle_core::Tensor> = Vec::with_capacity(depth);
+
+        let mut x = upload(inputs_batch); // upload unique de l'entrée
+
+        for l in 0..depth {
+            inputs_gpu.push(x.clone()); // x_{l-1} sur GPU
+
+            let z = add_bias_native(
+                &matmul_native(&weights_gpu[l], &x), // W·x
+                &biases_gpu[l],                      // + b
+            );
+
+            let x_next = self.activation.apply_tensor(&z); // f(z) sur GPU
+            pre_acts_gpu.push(z);
+            x = x_next;
+        }
+
+        ForwardPassGpu {
+            inputs: inputs_gpu,
+            pre_activations: pre_acts_gpu,
+        }
+    }
     fn forward_pass(&self, inputs_batch: &Matrix<f64>) -> ForwardPass {
         let depth = self.weights.len();
         let mut inputs: Vec<Matrix<f64>> = Vec::with_capacity(depth);
@@ -165,12 +211,23 @@ impl NeuralNetwork for MultiLayerPerceptron {
     }
 
     fn backpropagation(&mut self, database: &Database, iterations: usize, learning_rate: f64) {
-        let mut adam = AdamState::new(&self.weights, &self.biases);
+        use crate::mlp::tensor_ops::{
+            tensor_sub_native, tensor_to_mat_pub as download, vec_to_tensor_pub as upload_vec,
+        };
+
+        // Upload unique poids + biais avant la boucle
+        let mut weights_gpu: Vec<candle_core::Tensor> = self.weights.iter().map(upload).collect();
+        let biases_gpu: Vec<candle_core::Tensor> =           // biais uploadés une fois
+        self.biases.iter().map(upload_vec).collect(); // (pas mis à jour sur GPU pour l'instant)
+
+        let mut adam = AdamStateGPU::new(&weights_gpu, &self.biases);
+
         let size = min(iterations, 75);
         let mut min_err = f64::INFINITY;
         let mut initial_err: Option<f64> = None;
+
         for i in 0..iterations {
-            let progress: usize = ((i * size + 1) as f64 / (iterations as f64)) as usize;
+            let progress = ((i * size + 1) as f64 / iterations as f64) as usize;
             print!(
                 "\r[{0}{1}] {2}/{iterations} ",
                 "#".repeat(progress),
@@ -178,11 +235,12 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 i + 1,
             );
 
-            let (grad, _n, error) = self.inner_gradients(database);
-            if min_err > error {
-                min_err = min_err.min(error);
-            }
+            // Plus de download intermédiaire — forward pass sur GPU directement
+            let (grad, _n, error) = self.inner_gradients(&weights_gpu, &biases_gpu, database);
 
+            if error < min_err {
+                min_err = error;
+            }
             if initial_err.is_none() {
                 initial_err = Some(error);
             }
@@ -194,62 +252,68 @@ impl NeuralNetwork for MultiLayerPerceptron {
             stdout().flush().unwrap();
 
             if error <= 0.1 {
-                return;
+                break;
             }
 
-            let (dw, db) = adam_update(
+            let grad_weights_gpu: Vec<candle_core::Tensor> =
+                grad.weights.iter().map(upload).collect();
+
+            let (dw_gpu, db) = adam_update_gpu(
                 &mut adam,
-                &grad.weights,
+                &grad_weights_gpu,
                 &grad.biases,
                 learning_rate,
                 0.9,
                 0.999,
                 1e-8,
             );
-            self.weights = self.weights.sub(&dw);
+
+            weights_gpu = weights_gpu
+                .iter()
+                .zip(dw_gpu.iter())
+                .map(|(w, dw)| tensor_sub_native(w, dw))
+                .collect();
+
             self.biases = self.biases.sub(&db);
         }
+
+        self.weights = weights_gpu.iter().map(download).collect();
         print!("\r");
     }
 
-    fn gradient(&self, database: &Database) -> NeuralNetGradient {
-        let (grad, _, _) = self.inner_gradients(database);
-        grad
-    }
-
     /// Calcule le gradient moyen sur tout le dataset via backprop.
-    fn inner_gradients(&self, database: &Database) -> (NeuralNetGradient, usize, f64) {
+    fn inner_gradients(
+        &self,
+        weights_gpu: &[candle_core::Tensor],
+        biases_gpu: &[candle_core::Tensor],
+        database: &Database,
+    ) -> (NeuralNetGradient, usize, f64) {
         let n = database.len();
 
-        // 1. Construire la matrice d'entrée X : shape [n_features, N]
-        //    et la matrice de cibles T : shape [n_outputs, N]
         let inputs_batch: Matrix<f64> = transpose(
             &database
                 .iter()
                 .map(|(x, _, _)| x.as_ref().to_vec())
                 .collect(),
-        ); // [768, N]
-
+        );
         let targets_batch: Matrix<f64> = transpose(
             &database
                 .iter()
                 .map(|(_, t, _)| t.as_ref().to_vec())
                 .collect(),
-        ); // [n_outputs, N]
-
+        );
         let coefficients: Vector<f64> = database.iter().map(|(_, _, c)| *c).collect();
 
-        // 2. Forward pass batché — un seul appel GPU
-        let pass = self.forward_pass(&inputs_batch);
+        // Forward pass GPU — zéro round-trip intermédiaire
+        let pass = self.forward_pass_gpu(&inputs_batch, weights_gpu, biases_gpu);
 
-        // 3. Sortie finale x_L : shape [n_outputs, N]
-        let last_pre_act = pass.pre_activations.last().unwrap();
-        let x_final: Matrix<f64> = last_pre_act
-            .iter()
-            .map(|col| self.activation.apply(col))
-            .collect();
+        // Download uniquement x_final pour le calcul de l'erreur scalaire
+        let x_final: Matrix<f64> = {
+            let last = pass.pre_activations.last().unwrap();
+            download(&self.activation.apply_tensor(last)) // f(z_L) → CPU
+        };
 
-        // 4. Erreur scalaire : Σ coefficient_i * ||x_L_i - t_i||²
+        // Erreur scalaire (CPU)
         let acc_error: f64 = (0..n)
             .map(|i| {
                 let col: Vector<f64> = x_final.iter().map(|row| row[i]).collect();
@@ -258,8 +322,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             })
             .sum();
 
-        // 5. Gradient de l'erreur : shape [n_outputs, N]
-        //    ∂C/∂x_L[:, i] = 2 * (x_L[:, i] - t[:, i]) * coefficient_i
+        // Gradient d'erreur (CPU) → sera uploadé dans backprop_batch_gpu
         let error_grad_batch: Matrix<f64> = x_final
             .iter()
             .zip(targets_batch.iter())
@@ -273,13 +336,7 @@ impl NeuralNetwork for MultiLayerPerceptron {
             })
             .collect();
 
-        let grad = backprop_batch(
-            &self.weights,
-            &pass.pre_activations,
-            &pass.inputs,
-            &error_grad_batch,
-            &self.activation,
-        );
+        let grad = backprop_batch_gpu(weights_gpu, &pass, &error_grad_batch, &self.activation);
 
         (
             NeuralNetGradient {

@@ -14,6 +14,17 @@ fn vec_to_tensor(v: &Vector<f64>) -> Tensor {
     Tensor::from_slice(v, (v.len(),), device()).unwrap()
 }
 
+/// Vector<f64> → Tensor, shape [n]  (upload biais)
+pub(crate) fn vec_to_tensor_pub(v: &Vector<f64>) -> Tensor {
+    vec_to_tensor(v)
+}
+
+/// z_gpu [k, N] + b_gpu [k] → [k, N]  (broadcast biais, sur GPU)
+pub(crate) fn add_bias_native(z: &Tensor, b: &Tensor) -> Tensor {
+    // unsqueeze b : [k] → [k, 1], puis broadcast sur N colonnes
+    z.broadcast_add(&b.unsqueeze(1).unwrap()).unwrap()
+}
+
 /// Matrix<f64> → Tensor candle, shape [rows, cols]
 fn mat_to_tensor(m: &Matrix<f64>) -> Tensor {
     let rows = m.len();
@@ -38,6 +49,15 @@ pub(crate) fn row_means_tensor(m: &Tensor) -> Tensor {
 /// Tensor candle shape [rows, cols] → Matrix<f64>
 fn tensor_to_mat(t: &Tensor) -> Matrix<f64> {
     t.to_dtype(DType::F64).unwrap().to_vec2().unwrap()
+}
+
+/// W ← W - dW, entièrement sur GPU
+pub(crate) fn tensor_sub_native(w: &Tensor, dw: &Tensor) -> Tensor {
+    (w - dw).unwrap()
+}
+/// Tenseur de zéros de même shape que `t`, sur GPU
+pub(crate) fn zeros_like_gpu(t: &Tensor) -> Tensor {
+    Tensor::zeros_like(t).unwrap()
 }
 
 /// W · x  (forward pass)

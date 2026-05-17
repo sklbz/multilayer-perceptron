@@ -5,8 +5,66 @@ use crate::mlp::activation_function::Activation;
 use crate::mlp::activation_function::Function;
 use crate::mlp::tensor_ops::row_means_tensor;
 use crate::mlp::tensor_ops::tensor_to_vec_pub;
-use candle_core::Tensor;
+use crate::mlp::tensor_ops::{
+    mat_to_tensor_pub as upload, matmul_t_native, outer_batch_native, tensor_to_mat_pub as download,
+};
 
+use candle_core::Tensor;
+pub(super) fn backprop_batch_gpu(
+    weights_gpu: &[Tensor], // déjà sur GPU, pas d'upload
+    forward_pass: &ForwardPassGpu,
+    error_grad_batch: &Matrix<f64>,
+    activation: &Activation,
+) -> NeuralNetGradient {
+    let depth = weights_gpu.len();
+    let n = error_grad_batch[0].len() as f64;
+
+    // ── Upload unique ──────────────────────────────────────────────
+    let err_gpu = upload(error_grad_batch);
+
+    // ── Couche L ───────────────────────────────────────────────────
+    let f_prime_last = activation.gradient_tensor(&forward_pass.pre_activations[depth - 1]);
+    let delta_last = (err_gpu * f_prime_last).unwrap(); // hadamard sur GPU
+
+    let mut weight_grads_gpu: Vec<Tensor> = Vec::with_capacity(depth);
+    let mut bias_grads_gpu: Vec<Tensor> = Vec::with_capacity(depth);
+    let mut deltas_gpu: Vec<Tensor> = Vec::with_capacity(depth);
+
+    weight_grads_gpu.push(outer_batch_native(
+        &delta_last,
+        &forward_pass.inputs[depth - 1],
+        n,
+    ));
+    bias_grads_gpu.push(row_means_tensor(&delta_last));
+    deltas_gpu.push(delta_last);
+
+    // ── Couches L-1 → 0, entièrement sur GPU ──────────────────────
+    for l in (0..depth - 1).rev() {
+        let delta_next = deltas_gpu.last().unwrap();
+        let propagated = matmul_t_native(&weights_gpu[l + 1], delta_next);
+
+        let f_prime = activation.gradient_tensor(&forward_pass.pre_activations[l]);
+        let delta_l = (propagated * f_prime).unwrap();
+
+        weight_grads_gpu.push(outer_batch_native(&delta_l, &forward_pass.inputs[l], n));
+        bias_grads_gpu.push(row_means_tensor(&delta_l));
+        deltas_gpu.push(delta_l);
+    }
+
+    weight_grads_gpu.reverse();
+    bias_grads_gpu.reverse();
+
+    // ── Download unique ────────────────────────────────────────────
+    NeuralNetGradient {
+        weights: weight_grads_gpu.iter().map(download).collect(),
+        biases: bias_grads_gpu
+            .iter()
+            .map(|t| {
+                tensor_to_vec_pub(t) // row_means produit déjà [k]
+            })
+            .collect(),
+    }
+}
 /// Version batché de backprop.
 ///
 /// # Arguments

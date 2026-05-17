@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::linear_algebra::addition::Add;
 use crate::linear_algebra::matrix::*;
 use crate::linear_algebra::product::Mul;
+use crate::mlp::tensor_ops::zeros_like_gpu;
 
 pub fn into_layer(architecture: &[usize]) -> (Vec<usize>, Vec<usize>) {
     let layers_count = architecture.len() - 1;
@@ -193,4 +194,93 @@ pub fn adam_update(
     }
 
     (dw, db)
+}
+// ------------------------------------------------------------------------------------
+use candle_core::Tensor as GPU_Tensor;
+/// État interne de l'optimiseur Adam.
+pub struct AdamStateGPU {
+    pub m_weights_gpu: Vec<GPU_Tensor>, // moments d'ordre 1 des poids
+    pub v_weights_gpu: Vec<GPU_Tensor>, // moments d'ordre 2 des poids
+    pub m_biases: Matrix<f64>,
+    pub v_biases: Matrix<f64>,
+    pub t: usize, // compteur d'itérations
+}
+
+impl AdamStateGPU {
+    /// Initialise tous les moments à zéro, même shape que le réseau.
+    pub fn new(weights_gpu: &[GPU_Tensor], biases: &Matrix<f64>) -> Self {
+        Self {
+            m_weights_gpu: weights_gpu.iter().map(zeros_like_gpu).collect(),
+            v_weights_gpu: weights_gpu
+                .iter()
+                .map(zeros_like_gpu)
+                .collect::<Vec<GPU_Tensor>>(),
+            m_biases: biases.iter().map(|b| vec![0.0; b.len()]).collect(),
+            v_biases: biases.iter().map(|b| vec![0.0; b.len()]).collect(),
+            t: 0,
+        }
+    }
+}
+
+pub fn adam_update_gpu(
+    state: &mut AdamStateGPU,
+    grad_weights_gpu: &[GPU_Tensor],
+    grad_biases: &Matrix<f64>,
+    lr: f64,
+    beta1: f64,
+    beta2: f64,
+    eps: f64,
+) -> (Vec<GPU_Tensor>, Matrix<f64>) {
+    state.t += 1;
+    let t = state.t as f64;
+
+    let bc1 = 1.0 - beta1.powf(t); // correction biais ordre 1
+    let bc2 = 1.0 - beta2.powf(t); // correction biais ordre 2
+
+    let dw: Vec<GPU_Tensor> = grad_weights_gpu
+        .iter()
+        .enumerate()
+        .map(|(l, g)| {
+            // m_l ← β1·m_l + (1−β1)·g
+            state.m_weights_gpu[l] = (state.m_weights_gpu[l].affine(beta1, 0.0).unwrap()
+                + g.affine(1.0 - beta1, 0.0).unwrap())
+            .unwrap();
+
+            // v_l ← β2·v_l + (1−β2)·g²
+            let g_sq = (g * g).unwrap();
+            state.v_weights_gpu[l] = (state.v_weights_gpu[l].affine(beta2, 0.0).unwrap()
+                + g_sq.affine(1.0 - beta2, 0.0).unwrap())
+            .unwrap();
+
+            // m̂ = m / (1−β1^t),  v̂ = v / (1−β2^t)
+            let m_hat = state.m_weights_gpu[l].affine(1.0 / bc1, 0.0).unwrap();
+            let v_hat = state.v_weights_gpu[l].affine(1.0 / bc2, 0.0).unwrap();
+
+            // dW = lr · m̂ / (√v̂ + ε)
+            let denom = (v_hat.sqrt().unwrap() + eps).unwrap();
+            (m_hat / denom).unwrap().affine(lr, 0.0).unwrap()
+        })
+        .collect();
+
+    let mut db: Matrix<f64> = Vec::new();
+    (0..grad_biases.len()).for_each(|l| {
+        let mut db_l: Vector<f64> = Vec::new();
+        for k in 0..grad_biases[l].len() {
+            let g = grad_biases[l][k];
+            state.m_biases[l][k] = beta1 * state.m_biases[l][k] + (1.0 - beta1) * g;
+            state.v_biases[l][k] = beta2 * state.v_biases[l][k] + (1.0 - beta2) * g * g;
+            let m_hat = state.m_biases[l][k] / bc1;
+            let v_hat = state.v_biases[l][k] / bc2;
+            db_l.push(lr * m_hat / (v_hat.sqrt() + eps));
+        }
+        db.push(db_l);
+    });
+
+    (dw, db)
+}
+// ----------------------------------------------------------------------------------------------
+/// Résultat du forward pass GPU pour un batch donné.
+pub struct ForwardPassGpu {
+    pub inputs: Vec<candle_core::Tensor>,          // [L][j, N]
+    pub pre_activations: Vec<candle_core::Tensor>, // [L][k, N]
 }
