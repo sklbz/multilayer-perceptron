@@ -31,14 +31,19 @@ pub(super) fn backprop_batch(
     let delta_last: Matrix<f64> = hadamard_batch(&error_grad_batch, &f_prime_last);
 
     // ∂C/∂W_L = δ_L · x_{L-1}ᵀ  moyenné sur N — shape [k, j]
-    let mut weight_grads: Tensor<f64> = vec![outer_batch(&delta_last, &inputs[depth - 1])];
+    let mut weight_grads: Tensor<f64> = Vec::with_capacity(depth);
     // ∂C/∂b_L = mean(δ_L, axis=N) — shape [k]
-    let mut bias_grads: Matrix<f64> = vec![row_means(&delta_last)];
-    let mut deltas: Vec<Matrix<f64>> = vec![delta_last];
+    let mut bias_grads: Matrix<f64> = Vec::with_capacity(depth);
+    let mut deltas: Vec<Matrix<f64>> = Vec::with_capacity(depth);
+
+    weight_grads.push(outer_batch(&delta_last, &inputs[depth - 1]));
+    bias_grads.push(row_means(&delta_last));
+    deltas.push(delta_last);
 
     // Rétropropagation de L-1 jusqu'à 0
     for l in (0..depth - 1).rev() {
-        let delta_next = &deltas[0];
+        let delta_next: &Vec<Vec<f64>> = deltas.last().unwrap();
+
         let w_next = &weights[l + 1];
 
         // W_{l+1}ᵀ · δ_{l+1} — shape [j, N]
@@ -52,11 +57,13 @@ pub(super) fn backprop_batch(
         let delta_l = hadamard_batch(&propagated, &f_prime);
 
         // ∂C/∂W_l = δ_l · x_{l-1}ᵀ  moyenné sur N
-        weight_grads = weight_grads.prepend(outer_batch(&delta_l, &inputs[l]));
+        weight_grads.push(outer_batch(&delta_l, &inputs[l]));
         // ∂C/∂b_l = mean(δ_l, axis=N)
-        bias_grads = bias_grads.prepend(row_means(&delta_l));
-        deltas = deltas.prepend(delta_l);
+        bias_grads.push(row_means(&delta_l));
+        deltas.push(delta_l);
     }
+    weight_grads.reverse();
+    bias_grads.reverse();
 
     NeuralNetGradient {
         weights: weight_grads,

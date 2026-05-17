@@ -2,14 +2,16 @@
 
 use crate::linear_algebra::matrix::*;
 use candle_core::{DType, Device, Tensor};
+use std::sync::OnceLock;
 
-fn device() -> Device {
-    Device::cuda_if_available(0).unwrap_or(Device::Cpu)
+fn device() -> &'static Device {
+    static DEVICE: OnceLock<Device> = OnceLock::new();
+    DEVICE.get_or_init(|| Device::cuda_if_available(0).unwrap_or(Device::Cpu))
 }
 
 /// Vector<f64> → Tensor candle, shape [n]
 fn vec_to_tensor(v: &Vector<f64>) -> Tensor {
-    Tensor::from_slice(v, (v.len(),), &device()).unwrap()
+    Tensor::from_slice(v, (v.len(),), device()).unwrap()
 }
 
 /// Matrix<f64> → Tensor candle, shape [rows, cols]
@@ -17,7 +19,7 @@ fn mat_to_tensor(m: &Matrix<f64>) -> Tensor {
     let rows = m.len();
     let cols = m[0].len();
     let flat: Vec<f64> = m.iter().flatten().copied().collect();
-    Tensor::from_slice(&flat, (rows, cols), &device()).unwrap()
+    Tensor::from_slice(&flat, (rows, cols), device()).unwrap()
 }
 
 /// Tensor candle shape [n] → Vector<f64>

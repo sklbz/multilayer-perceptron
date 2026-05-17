@@ -142,9 +142,6 @@ impl NeuralNetwork for MultiLayerPerceptron {
         let mut x = inputs_batch.clone(); // [j, N]
 
         for (w, b) in self.weights.iter().zip(self.biases.iter()) {
-            // x_{l-1} : entrée de cette couche
-            inputs.push(x.clone());
-
             // z_l = W_l · X + b_l  — b est broadcasté sur les N colonnes
             let mut z = matmul(w, &x); // [k, N]
             for col in z.iter_mut() {
@@ -153,13 +150,17 @@ impl NeuralNetwork for MultiLayerPerceptron {
                 }
             }
 
-            pre_activations.push(z.clone());
-
-            // x_l = f(z_l) appliqué élément par élément
-            x = z
+            let x_next: Matrix<f64> = z
                 .iter()
                 .map(|col| self.activation.apply(col.clone()))
                 .collect();
+            pre_activations.push(z.clone());
+
+            // Move de x et z : plus aucun clone nécessaire
+            inputs.push(x);
+            pre_activations.push(z);
+
+            x = x_next;
         }
 
         ForwardPass {
