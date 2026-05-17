@@ -2,7 +2,6 @@ use crate::mlp::multilayer_perceptron::{MultiLayerPerceptron, NeuralNetwork};
 
 mod linear_algebra;
 mod mlp;
-mod test;
 
 fn main() {
     let mlp = MultiLayerPerceptron::new(vec![1, 8, 8, 1]);
